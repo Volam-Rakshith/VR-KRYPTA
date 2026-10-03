@@ -6,10 +6,12 @@ import { useMemo, useState } from 'react';
 import { lockerEncrypt, lockerDecrypt } from '../operations/locker';
 import { getOp } from '../operations';
 import { Icon } from '../ui/icons';
-import { TiltLogo, ScrambleButton } from '../ui/fx';
+import { TiltLogo, ScrambleButton, spawnRipple } from '../ui/fx';
 import { useToast } from '../ui/components';
 import { navigate } from '../hooks/useApp';
 import { parseCaptured, capturedInvite } from '../services/share';
+import { styleAt, randomStyleIndex, withStyleMarker, splitStyleMarker, styleTokens, STYLE_COUNT } from './shareThemes';
+import { Select } from '../ui/select';
 
 type ToastFn = ReturnType<typeof useToast>;
 
@@ -123,8 +125,10 @@ function CreateView() {
   const [pass, setPass] = useState('');
   const [busy, setBusy] = useState(false);
   const [blob, setBlob] = useState<string | null>(null);
+  const [styleIdx, setStyleIdx] = useState(() => randomStyleIndex());
+  const style = styleAt(styleIdx);
 
-  const link = useMemo(() => (blob ? shareUrl(blob) : null), [blob]);
+  const link = useMemo(() => (blob ? shareUrl(withStyleMarker(blob, styleIdx)) : null), [blob, styleIdx]);
 
   const strength = pass.length === 0 ? '' : pass.length < 6 ? 'too short' : pass.length < 10 ? 'okay' : pass.length < 16 ? 'good' : 'fortress';
 
@@ -172,6 +176,32 @@ function CreateView() {
           onChange={(e) => setPass(e.target.value)}
           autoComplete="off"
         />
+        {/* SECRET DROP 2.0 — the reveal page wears the style you forge here. */}
+        <label className="share__label">reveal style <span className="share__strength">{STYLE_COUNT} looks</span></label>
+        <div className="sdstyle">
+          <div className={`sdstyle__preview ${style.pattern.cls}`} style={styleTokens(style)} aria-hidden="true">
+            <span className="sdstyle__title">SEALED FOR YOU</span>
+            <span className="sdstyle__sub">VR — KRYPTA · by VR DEVELOPMENTS</span>
+          </div>
+          <div className="sdstyle__picker">
+            <Select
+              className="sdstyle__select"
+              value={String(styleIdx)}
+              onChange={(v) => setStyleIdx(Number(v))}
+              ariaLabel="Reveal style"
+              maxHeight={260}
+              options={Array.from({ length: STYLE_COUNT }, (_, i) => ({ value: String(i), label: styleAt(i).name }))}
+            />
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm sdstyle__shuffle"
+              title="Shuffle the style"
+              onClick={() => setStyleIdx((i) => randomStyleIndex(i))}
+            >
+              <Icon name="sparkle" size={13} /> SHUFFLE
+            </button>
+          </div>
+        </div>
         <ScrambleButton
           label={busy ? 'SEALING…' : 'SEAL THE SECRET'}
           icon="bolt"
@@ -212,13 +242,27 @@ function RevealView({ payload }: { payload: string }) {
   const [busy, setBusy] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
   const [err, setErr] = useState('');
+  const { clean, style } = splitStyleMarker(payload);
+  const tokens = styleTokens(style ?? styleAt(0));
 
   const reveal = async () => {
     if (!pass) { setErr('Enter the passphrase the sender gave you.'); return; }
     setBusy(true);
     setErr('');
     try {
-      setSecret(await lockerDecrypt(payload, pass));
+      const msg = await lockerDecrypt(clean, pass);
+      setSecret(msg);
+      // little celebration: ripple burst in the card colors
+      const cols = style ? [style.palette.c1, style.palette.c2, style.palette.c3] : ['#22d3ee', '#8b5cf6', '#3b82f6'];
+      for (let i = 0; i < 9; i++) {
+        setTimeout(() => {
+          spawnRipple(
+            window.innerWidth * (0.3 + Math.random() * 0.4),
+            window.innerHeight * (0.3 + Math.random() * 0.4),
+            cols[i % cols.length]
+          );
+        }, i * 90);
+      }
     } catch {
       setErr('That passphrase doesn\'t open this — check it with the sender.');
     } finally {
@@ -227,20 +271,21 @@ function RevealView({ payload }: { payload: string }) {
   };
 
   return (
-    <div className="share page page--narrow">
+    <div className={`share page page--narrow share--styled ${style?.pattern.cls ? `has-pattern ${style.pattern.cls}` : ''}`} style={tokens}>
       <header className="share__head">
         <TiltLogo size={96} />
         <p className="share__eyebrow">VR — KRYPTA · BY VR DEVELOPMENTS</p>
         <h1 className="neon-title">SEALED FOR YOU</h1>
         <p className="share__sub">Someone sent you a locked message. Only the passphrase opens it.</p>
+        {style && <span className="share__stylechip">{style.name}</span>}
       </header>
 
       {!secret && (
         <section className="share__card share__card--glowborder">
           <p className="share__label">sealed code</p>
-          <div className="share__blob">{payload}</div>
+          <div className="share__blob">{clean}</div>
           <div className="share__row">
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copyText(payload, 'Sealed code copied', toast)}>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copyText(clean, 'Sealed code copied', toast)}>
               <Icon name="copy" size={13} /> Copy code
             </button>
           </div>

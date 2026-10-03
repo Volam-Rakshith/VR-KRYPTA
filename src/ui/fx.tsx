@@ -73,11 +73,16 @@ export function CursorFX() {
 }
 
 /** Expanding ring at every click — direct confirmation that the click registered. */
-function spawnRipple(x: number, y: number) {
+export function spawnRipple(x: number, y: number, color?: string) {
   const el = document.createElement('div');
   el.className = 'click-ripple';
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
+  if (color) {
+    el.style.setProperty('--ripple-c', color);
+    el.style.borderColor = color;
+    el.style.boxShadow = `0 0 18px ${color}`;
+  }
   document.body.appendChild(el);
   el.addEventListener('animationend', () => el.remove());
 }

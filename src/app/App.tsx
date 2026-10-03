@@ -81,6 +81,7 @@ export default function App() {
   const route = useRoute();
   const [ready, setReady] = useState(false);
   const [booted, setBooted] = useState(false);
+  const [welcomedNow, setWelcomedNow] = useState(false);
 
   useEffect(() => {
     void initStore().then(() => setReady(true));
@@ -91,7 +92,9 @@ export default function App() {
   const prefs = getPrefs();
   const showBoot = !booted && !prefs.bootSeen;
   // Share landing pages skip the name prompt — the recipient is a guest, not a user-setup target.
-  const showWelcome = !showBoot && !prefs.welcomed && route.name !== 'share';
+  // welcomedNow flags the just-finished welcome locally: onDone persisted the pref,
+  // but App doesn't subscribe to the store, so it needs local state to advance.
+  const showWelcome = !showBoot && !prefs.welcomed && !welcomedNow && route.name !== 'share';
 
   return (
     <ToastProvider>
@@ -113,7 +116,7 @@ export default function App() {
       {showBoot && (
         <BootScreen onDone={() => { setPrefs({ bootSeen: true }); setBooted(true); }} />
       )}
-      {showWelcome && <Welcome onDone={() => setPrefs({ welcomed: true })} />}
+      {showWelcome && <Welcome onDone={() => { setPrefs({ welcomed: true }); setWelcomedNow(true); }} />}
     </ToastProvider>
   );
 }

@@ -1249,3 +1249,76 @@ select.select option, select.select optgroup { background: #0d101c; color: var(-
 @media (min-width: 1400px) {
   .page--narrow { max-width: 760px; }
 }
+
+/* ========================= SECRET DROP 2.0 STYLES ========================= */
+
+/* picker + live preview in CreateView */
+.sdstyle { display: grid; gap: 10px; }
+.sdstyle__preview {
+  position: relative; overflow: hidden; display: grid; place-content: center; gap: 6px;
+  min-height: 130px; padding: 18px; border-radius: 14px; text-align: center;
+  border: 1px solid color-mix(in srgb, var(--sd-c1) 45%, transparent);
+  background: radial-gradient(130% 170% at 50% -10%, color-mix(in srgb, var(--sd-c2) 22%, #0b0f1d), #090c16 80%);
+  box-shadow: inset 0 0 34px color-mix(in srgb, var(--sd-c1) 10%, transparent);
+}
+.sdstyle__title {
+  position: relative; z-index: 1; font-family: var(--mono); font-weight: 800; letter-spacing: 0.14em;
+  font-size: 22px; background: var(--sd-grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--sd-c1) 60%, transparent));
+}
+.sdstyle__sub { position: relative; z-index: 1; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.34em; color: rgba(226, 234, 255, 0.55); }
+.sdstyle__picker { display: flex; gap: 10px; align-items: stretch; }
+.sdstyle__select { flex: 1; }
+.sdstyle__shuffle { white-space: nowrap; }
+
+/* stylized reveal page: everything borrows the palette tokens */
+.share--styled { position: relative; }
+.share--styled .neon-title { background: var(--sd-grad); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; }
+.share--styled .share__card--glowborder::before {
+  background: conic-gradient(from var(--gb-a, 0deg), var(--sd-c1), var(--sd-c3), var(--sd-c2), var(--sd-c1));
+}
+.share--styled .share__eyebrow { text-shadow: 0 0 12px color-mix(in srgb, var(--sd-c1) 60%, transparent); }
+.share--styled .share__blob { border-color: color-mix(in srgb, var(--sd-c1) 40%, transparent); background: color-mix(in srgb, var(--sd-c1) 6%, transparent); color: var(--sd-c1); }
+.share--styled .share__ctalink { color: var(--sd-c1); border-bottom-color: var(--sd-c1); }
+.share--styled .btn--primary { border-color: color-mix(in srgb, var(--sd-c3) 60%, transparent); }
+.share__stylechip {
+  display: inline-block; margin-top: 2px; padding: 4px 14px; border-radius: 999px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.28em;
+  color: var(--sd-c1); background: color-mix(in srgb, var(--sd-c1) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sd-c1) 40%, transparent);
+}
+
+/* pattern layer behind the page (styled drops) + preview backgrounds */
+.has-pattern::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.6;
+  background-image: var(--pat, none); background-size: var(--pat-size, 36px 36px);
+}
+.sdstyle__preview::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.85;
+  background-image: var(--pat, none); background-size: var(--pat-size, 36px 36px);
+}
+
+.sdp-grid { --pat-size: 34px 34px; --pat:
+  linear-gradient(color-mix(in srgb, var(--sd-c1) 9%, transparent) 1px, transparent 1px),
+  linear-gradient(90deg, color-mix(in srgb, var(--sd-c1) 9%, transparent) 1px, transparent 1px); }
+.sdp-circuit { --pat-size: 48px 48px; --pat:
+  linear-gradient(color-mix(in srgb, var(--sd-c3) 12%, transparent) 2px, transparent 2px 22px, color-mix(in srgb, var(--sd-c3) 12%, transparent) 22px 24px, transparent 24px),
+  linear-gradient(90deg, transparent 22px, color-mix(in srgb, var(--sd-c3) 12%, transparent) 22px 24px, transparent 24px); }
+.sdp-stars { --pat-size: 30px 30px; --pat:
+  radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--sd-c1) 26%, transparent) 1.4px, transparent 1.8px),
+  radial-gradient(circle at 75% 70%, color-mix(in srgb, var(--sd-c2) 24%, transparent) 1.2px, transparent 1.6px); }
+.sdp-diagonal { --pat-size: 40px 40px; --pat:
+  repeating-linear-gradient(45deg, color-mix(in srgb, var(--sd-c3) 10%, transparent) 0 3px, transparent 3px 16px); }
+.sdp-hex { --pat-size: 42px 36px; --pat:
+  repeating-linear-gradient(30deg, color-mix(in srgb, var(--sd-c2) 8%, transparent) 0 1.5px, transparent 1.5px 20px),
+  repeating-linear-gradient(150deg, color-mix(in srgb, var(--sd-c2) 8%, transparent) 0 1.5px, transparent 1.5px 20px); }
+.sdp-ripples { --pat-size: 64px 64px; --pat:
+  repeating-radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--sd-c2) 9%, transparent) 0 1.5px, transparent 1.5px 18px); }
+.sdp-cross { --pat-size: 36px 36px; --pat:
+  repeating-linear-gradient(45deg, color-mix(in srgb, var(--sd-c1) 7%, transparent) 0 2px, transparent 2px 18px),
+  repeating-linear-gradient(-45deg, color-mix(in srgb, var(--sd-c1) 7%, transparent) 0 2px, transparent 2px 18px); }
+.sdp-bubbles { --pat-size: 56px 56px; --pat:
+  radial-gradient(circle at 25% 30%, color-mix(in srgb, var(--sd-c2) 12%, transparent) 7px, transparent 8px),
+  radial-gradient(circle at 70% 75%, color-mix(in srgb, var(--sd-c1) 10%, transparent) 10px, transparent 11px); }
+.sdp-matter { --pat-size: 6px 6px; --pat:
+  repeating-conic-gradient(color-mix(in srgb, var(--sd-c3) 6%, transparent) 0% 25%, transparent 0% 50%); }
