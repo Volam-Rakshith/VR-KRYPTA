@@ -7,6 +7,7 @@ import { allOps, getOp } from '../src/operations/core/registry';
 import { defaultOptions } from '../src/operations/core/types';
 import type { IOValue, OpContext } from '../src/operations/core/types';
 import { utf8 } from '../src/utils/bytes';
+import { toMorseCode, morseEvents, morseDuration } from '../src/operations/morseAudio';
 import vectorsJson from './vectors/core.json';
 
 const vectors = vectorsJson as Record<
@@ -242,20 +243,6 @@ describe('secret message locker (AES-256-GCM via WebCrypto)', () => {
     await expect(Promise.resolve().then(() => unlock.run(buildInput('just some text'), { passphrase: 'whatever1' }, ctx))).rejects.toThrow(/VK1/);
   });
 
-  it('QR generator produces a square grid with all three finder patterns', async () => {
-    const op = getOp('qr-code')!;
-    const enc = op.actions[0];
-    const out = (await enc.run(buildInput('HELLO'), defaultOptions(op), ctx)).text;
-    const art = out.split('\n\n—')[0];
-    const rows = art.split('\n');
-    // half-block render of a 21-module code + quiet zone: 13 rows, equal widths
-    expect(rows.length).toBe(13);
-    expect(new Set(rows.map((r) => [...r].length)).size).toBe(1);
-    // finder corners: dense top-left and top-right runs of dark half/full blocks
-    expect(rows[1]).toContain('█▀▀▀▀▀█');
-    expect(rows[1].slice(-1 - 9)).toContain('█▀▀▀▀▀█'.slice(-9));
-    expect(rows[rows.length - 2].slice(0, 10)).not.toMatch(/^\s+$/);
-  });
 });
 
 describe('validation behaviour', () => {
@@ -297,5 +284,51 @@ describe('validation behaviour', () => {
     expect(good.text).toContain('MATCH');
     const bad = await verify.run(buildInput('abc'), { ...defaultOptions(op), expected: 'deadbeef' }, ctx);
     expect(bad.text).toContain('NO MATCH');
+  });
+});
+
+describe('morse audio & light', () => {
+  it('normalizes plain text to canonical morse', () => {
+    expect(toMorseCode('SOS')).toBe('... --- ...');
+    expect(toMorseCode('hello world')).toBe('.... . .-.. .-.. --- / .-- --- .-. .-.. -..');
+    expect(() => toMorseCode('   ')).toThrow();
+  });
+
+  it('builds a PARIS-standard element timeline', () => {
+    const ev = morseEvents('... --- ...');
+    // S: 3 dots(1u) + 2 inner gaps(1u); letter gap 3u
+    const sosUnits = ev.reduce((s, e) => s + e.on + e.off, 0);
+    expect(sosUnits).toBe(15 /* on */ + 4 /* inner gaps */ + 6 /* letter gaps */ + 2 /* trailing inner */);
+    expect(morseDuration('... --- ...', 15)).toBeCloseTo(sosUnits * (1.2 / 15), 5);
+    expect(morseEvents('.')[0]).toEqual({ on: 1, off: 0, kind: '.' });
+  });
+
+  it('accepts raw morse input with messy separators', () => {
+    expect(toMorseCode('...  /  ---  ...')).toBe('... / --- / ...');
+    expect(toMorseCode('·−·   −')).toBe('.-. / -');
+  });
+
+  it('creates a valid mono 16-bit WAV', () => {
+    const op = getOp('morse-audio')!;
+    const wavRun = op.actions.find((a) => a.id === 'wav')!;
+    const out = wavRun.run({ kind: 'text', text: 'SOS' }, { wpm: 20, hz: 700 }, ctx) as IOValue;
+    const bytes = out.bytes!;
+    expect(String.fromCharCode(...bytes.slice(0, 4))).toBe('RIFF');
+    expect(String.fromCharCode(...bytes.slice(8, 12))).toBe('WAVE');
+    const dv = new DataView(bytes.buffer);
+    expect(dv.getUint16(22, true)).toBe(1); // mono
+    expect(dv.getUint32(24, true)).toBe(22050);
+    expect(dv.getUint32(40, true)).toBe(bytes.length - 44); // data chunk
+    // duration consistent with events
+    const expectSec = morseDuration('... --- ...', 20) + 0.05;
+    expect(bytes.length - 44).toBeGreaterThan(expectSec * 22050 * 2 * 0.9);
+  });
+
+  it('wpm/hz are clamped to sane ranges', () => {
+    const op = getOp('morse-audio')!;
+    const wavRun = op.actions.find((a) => a.id === 'wav')!;
+    const out = wavRun.run({ kind: 'text', text: 'ab' }, { wpm: 999, hz: -5 }, ctx) as IOValue;
+    expect(out.text).toContain('300 Hz'); // hz clamped from -5
+    expect((out.bytes!.length - 44) / 2 / 22050).toBeLessThan(1); // wpm 999 clamped to 40 => short file
   });
 });

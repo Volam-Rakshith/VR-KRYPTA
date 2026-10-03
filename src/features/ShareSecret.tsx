@@ -1,9 +1,9 @@
 // SECRET DROP — share-locked secrets with friends.
-// Create mode: type a secret + passphrase → VK1 blob + share link + QR.
+// Create mode: type a secret + passphrase → VK1 blob + share link.
 // Reveal mode (#/share/VK1...): branded landing that shows the sealed blob,
 // a copy button, and a passphrase prompt to reveal the message in place.
 import { useMemo, useState } from 'react';
-import { lockerEncrypt, lockerDecrypt, renderQR } from '../operations/qr';
+import { lockerEncrypt, lockerDecrypt } from '../operations/locker';
 import { getOp } from '../operations';
 import { Icon } from '../ui/icons';
 import { TiltLogo, ScrambleButton } from '../ui/fx';
@@ -43,9 +43,6 @@ function ShareOutView({ fragment }: { fragment: string }) {
   const op = data ? getOp(data.opId) : undefined;
   const opName = op?.name ?? 'a VR KRYPTA operation';
   const link = `${location.origin}${import.meta.env.BASE_URL}#${location.hash === '' ? `/share/${fragment}` : location.hash.replace(/^#/, '')}`;
-  const qrUp = useMemo(() => {
-    try { return renderQR(link, 'M', true); } catch { return null; }
-  }, [link]);
   const canNativeShare = typeof navigator.share === 'function';
 
   if (!data) {
@@ -112,12 +109,6 @@ function ShareOutView({ fragment }: { fragment: string }) {
           </button>
         </div>
 
-        {qrUp && (
-          <>
-            <p className="share__label">scan to open</p>
-            <div className="share__qrframe"><pre className="share__qr">{qrUp}</pre></div>
-          </>
-        )}
         <p className="share__fine">The link carries everything needed — nothing is stored server-side. Transform it in the full toolkit: <button type="button" className="share__ctalink" onClick={() => navigate('/')}>VR KRYPTA</button>.</p>
       </section>
     </div>
@@ -134,10 +125,6 @@ function CreateView() {
   const [blob, setBlob] = useState<string | null>(null);
 
   const link = useMemo(() => (blob ? shareUrl(blob) : null), [blob]);
-  const qr = useMemo(() => {
-    if (!link) return null;
-    try { return renderQR(link, 'M', true); } catch { return null; }
-  }, [link]);
 
   const strength = pass.length === 0 ? '' : pass.length < 6 ? 'too short' : pass.length < 10 ? 'okay' : pass.length < 16 ? 'good' : 'fortress';
 
@@ -147,7 +134,7 @@ function CreateView() {
     setBusy(true);
     try {
       setBlob(await lockerEncrypt(message.trim(), pass));
-      toast('Secret sealed — share the link or QR', 'ok');
+      toast('Secret sealed — share the link', 'ok');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Sealing failed', 'err');
     } finally {
@@ -210,13 +197,7 @@ function CreateView() {
               <Icon name="bolt" size={13} /> Copy message + link
             </button>
           </div>
-          {qr && (
-            <>
-              <p className="share__label">scan to open</p>
-              <div className="share__qrframe"><pre className="share__qr">{qr}</pre></div>
-            </>
-          )}
-          <p className="share__fine">Send the link or QR over anything. Send the <strong>passphrase separately</strong> — that separation is the whole point.</p>
+          <p className="share__fine">Send the link or blob over anything. Send the <strong>passphrase separately</strong> — that separation is the whole point.</p>
         </section>
       )}
     </div>

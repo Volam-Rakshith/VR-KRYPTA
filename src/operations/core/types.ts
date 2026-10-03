@@ -66,6 +66,8 @@ export interface OpActionDef {
   id: string;
   label: string;
   kind: ActionKind;
+  /** Optional icon override for the run-button (name from the icon set). */
+  icon?: string;
   run: (input: IOValue, opts: Record<string, unknown>, ctx: OpContext) => IOValue | Promise<IOValue>;
 }
 

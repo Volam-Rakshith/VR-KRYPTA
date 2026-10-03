@@ -50,7 +50,7 @@ export function Dashboard() {
         </p>
       </section>
 
-      <VelocityMarquee text="TRANSFORM • DECIPHER • ANALYZE • 189 OPERATIONS • ONE BROWSER • ZERO UPLOADS • VR KRYPTA BY VR DEVELOPMENTS •" />
+      <VelocityMarquee text={`TRANSFORM • DECIPHER • ANALYZE • ${opCount()} OPERATIONS • ONE BROWSER • ZERO UPLOADS • VR KRYPTA BY VR DEVELOPMENTS •`} />
 
       <section className="dash-section">
         <h2 className="section-title"><Icon name="grid" size={16} /> Categories</h2>

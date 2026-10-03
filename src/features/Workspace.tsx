@@ -13,7 +13,8 @@ import { OptionField } from '../ui/OptionsField';
 import { SpringModal } from '../ui/modal';
 import { ScrambleButton } from '../ui/fx';
 import { capturedFragment, capturedInvite, SHARE_TEXT_LIMIT } from '../services/share';
-import { renderQR } from '../operations/qr';
+
+import { stopAllMorse } from '../operations/morseAudio';
 
 const ctx: OpContext = { python: (fn, args) => callPython<string>(fn, args) };
 
@@ -35,6 +36,7 @@ export function Workspace({ opId }: { opId: string }) {
   useEffect(() => onPythonState(setPyState), []);
 
   useEffect(() => {
+    stopAllMorse(); // leaving/switching tools silences any running morse audio/light
     setOptions(op ? defaultOptions(op) : {});
     setOutput(null);
     setError(null);
@@ -119,19 +121,15 @@ export function Workspace({ opId }: { opId: string }) {
 
   const hexRenderForInput = (v: IOValue) => v.text;
 
-  // Spring share pop: QR + link + ready-made invite, no page change.
+  // Spring share pop: link + ready-made invite, no page change.
   const [shareOpen, setShareOpen] = useState<{ text: string; url: string } | null>(null);
   const shareResult = (oid: string, text: string) => {
     if (text.length > SHARE_TEXT_LIMIT) {
-      toast(`Result is ${text.length} chars — too long for a link/QR (max ${SHARE_TEXT_LIMIT}). Download it instead.`, 'err');
+      toast(`Result is ${text.length} chars — too long for a share link (max ${SHARE_TEXT_LIMIT}). Download it instead.`, 'err');
       return;
     }
     setShareOpen({ text, url: `${location.origin}${import.meta.env.BASE_URL}#/share/${capturedFragment(oid, text)}` });
   };
-  const shareQr = useMemo(() => {
-    if (!shareOpen) return null;
-    try { return renderQR(shareOpen.url, 'M', true); } catch { return null; }
-  }, [shareOpen]);
   const copyShare = async (t: string, msg: string) => {
     try { await navigator.clipboard.writeText(t); toast(msg, 'ok'); }
     catch { toast('Clipboard blocked — copy manually', 'err'); }
@@ -279,7 +277,7 @@ export function Workspace({ opId }: { opId: string }) {
               <ScrambleButton
                 key={a.id}
                 label={running === a.id ? 'RUNNING…' : a.label}
-                icon={running === a.id ? undefined : (a.kind === 'analyze' ? 'chart' : a.kind === 'verify' ? 'check' : a.kind === 'decode' || a.kind === 'decompress' ? 'key' : 'bolt')}
+                icon={running === a.id ? undefined : (a.icon ?? (a.kind === 'analyze' ? 'chart' : a.kind === 'verify' ? 'check' : a.kind === 'decode' || a.kind === 'decompress' ? 'key' : 'bolt'))}
                 className={`${actionTone(a.kind)} btn--lg`}
                 disabled={running !== null}
                 onClick={() => void run(a.id)}
@@ -330,7 +328,7 @@ export function Workspace({ opId }: { opId: string }) {
                 <button
                   type="button"
                   className="btn btn--primary btn--sm"
-                  title="Turn this result into a share link + QR the recipient can open on VR KRYPTA"
+                  title="Turn this result into a share link the recipient can open on VR KRYPTA"
                   onClick={() => shareResult(op.id, outputText)}
                 >
                   <Icon name="link" size={13} /> Share result
@@ -374,8 +372,7 @@ export function Workspace({ opId }: { opId: string }) {
       <SpringModal open={shareOpen !== null} onClose={() => setShareOpen(null)} title="Share this result" watermarkIcon="link">
         {shareOpen && (
           <>
-            <p className="smodal__tagline">One link. One QR. Nothing stored anywhere — the data rides inside the URL itself.</p>
-            {shareQr && <div className="share__qrframe smodal__qr"><pre className="share__qr">{shareQr}</pre></div>}
+            <p className="smodal__tagline">One link. Nothing stored anywhere — the data rides inside the URL itself.</p>
             <div className="share__blob share__blob--code smodal__code">{shareOpen.text.length > 240 ? shareOpen.text.slice(0, 240) + '…' : shareOpen.text}</div>
             <div className="smodal__actions">
               <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copyShare(shareOpen.text, 'Code copied')}>

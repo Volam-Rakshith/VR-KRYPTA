@@ -7,7 +7,6 @@ import { opCount, CATEGORIES, categoryCount } from '../operations';
 import { clearPythonCacheHint } from '../services/python';
 import { Icon, BrandMark } from '../ui/icons';
 import { ConfirmModal, useToast } from '../ui/components';
-import { Rolodex } from '../ui/fx';
 
 export function Settings() {
   const prefs = usePrefs();
@@ -172,23 +171,11 @@ export function About() {
         </p>
       </section>
 
-      <section className="panel panel--rolodex">
-        <h2 className="panel__title"><Icon name="sparkle" size={15} /> By the numbers</h2>
-        <div className="about-rolodex">
-          <Rolodex items={[
-            { icon: 'grid',      big: `${opCount()} OPS`,           small: 'every one real & vector-tested' },
-            { icon: 'key',       big: 'AES-256-GCM',                small: 'the Secret Drop locker engine' },
-            { icon: 'link',      big: 'QR + SHARE',                 small: 'results travel as links & codes' },
-            { icon: 'shield',    big: 'LOCAL-FIRST',                small: 'no accounts. no telemetry.' },
-            { icon: 'layers',    big: `${CATEGORIES.length} CATEGORIES`, small: 'from Enigma to Brainfuck' }
-          ]} />
-        </div>
-      </section>
 
       <section className="panel">
         <h2 className="panel__title"><Icon name="link" size={15} /> VR DEVELOPMENTS — connect</h2>
         <ClipLinks />
-        <p className="share__fine" style={{ textAlign: 'center' }}>Handles load soon — the vault is being wired.</p>
+        <p className="share__fine" style={{ textAlign: 'center' }}>LinkedIn loads soon — everything else is live.</p>
       </section>
     </div>
   );
@@ -231,14 +218,43 @@ const BRAND_SVGS: Record<string, React.ReactNode> = {
       <rect x="2.5" y="4.5" width="19" height="15" rx="2" />
       <path d="M2.5 6.5l9.5 7 9.5-7" />
     </svg>
+  ),
+  phone: (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+      <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
+    </svg>
+  ),
+  whatsapp: (
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M12 3a8.5 8.5 0 0 0-7.3 12.7L3.4 20.6l5-1.3A8.5 8.5 0 1 0 12 3z" strokeLinejoin="round" />
+      <circle cx="8.6" cy="11.6" r="1.05" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="11.6" r="1.05" fill="currentColor" stroke="none" />
+      <circle cx="15.4" cy="11.6" r="1.05" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  telegram: (
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M21.5 4.2L3.2 11.3c-.8.3-.8 1.3.1 1.6l4.1 1.3 1.6 4.9c.2.7 1 .9 1.5.4l2.2-2.1 4 2.9c.6.4 1.5.1 1.7-.6l3.6-14.5c.1-.8-.5-1.4-1.5-1z" strokeLinejoin="round" />
+      <path d="M7.3 12.6l10.2-6.4-7.1 8.4" />
+    </svg>
+  ),
+  instagram: (
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.2" cy="6.8" r="1.15" fill="currentColor" stroke="none" />
+    </svg>
   )
 };
 
 const CONNECT_LINKS = [
-  { id: 'github', label: 'GitHub', href: 'https://github.com/Volam-Rakshith/VR-KRYPTA', live: true },
-  { id: 'linkedin', label: 'LinkedIn', href: '#', live: false },
-  { id: 'x', label: 'X / Twitter', href: '#', live: false },
-  { id: 'mail', label: 'Email', href: '#', live: false }
+  { id: 'github', label: 'GitHub', handle: 'Volam-Rakshith', href: 'https://github.com/Volam-Rakshith', live: true },
+  { id: 'mail', label: 'Email', handle: 'volamrakshith2008@gmail.com', href: 'mailto:volamrakshith2008@gmail.com', live: true },
+  { id: 'phone', label: 'Phone', handle: '+91 79894 05979', href: 'tel:+917989405979', live: true },
+  { id: 'whatsapp', label: 'WhatsApp', handle: '+91 79894 05979', href: 'https://wa.me/917989405979', live: true },
+  { id: 'telegram', label: 'Telegram', handle: '@volamrakshith', href: 'https://t.me/volamrakshith', live: true },
+  { id: 'instagram', label: 'Instagram', handle: '@rishi_kumar_lfy', href: 'https://instagram.com/rishi_kumar_lfy', live: true },
+  { id: 'linkedin', label: 'LinkedIn', handle: 'Volam Rakshith', href: '#', live: false }
 ];
 
 function ClipLinks() {
@@ -279,7 +295,7 @@ function ClipLinks() {
         >
           <span className="cliplink__icon">{BRAND_SVGS[l.id]}<span className="cliplink__label">{l.label}</span></span>
           <span className="cliplink__face" aria-hidden="true" style={{ clipPath: 'polygon(0 0, 100% 0, 0 0, 0% 100%)' }}>
-            <span className="cliplink__icon cliplink__icon--face">{BRAND_SVGS[l.id]}<span className="cliplink__label">{l.label}</span></span>
+            <span className="cliplink__icon cliplink__icon--face">{BRAND_SVGS[l.id]}<span className="cliplink__label">{l.live ? l.handle : 'coming soon'}</span></span>
           </span>
         </a>
       ))}

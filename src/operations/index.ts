@@ -1,5 +1,6 @@
 // Importing this module registers the entire operation library.
 import './codes';
+import './morseAudio';
 import './codesExtra';
 import './encodings';
 import './encodingsExtra';
@@ -15,7 +16,7 @@ import './compression';
 import './compressionExtra';
 import './analysis';
 import './cryptanalysisExtra';
-import './qr';
+import './locker';
 import './pythonOps';
 
 export { defineOp, getOp, allOps, opCount, opsByCategory, categoryCount, searchOps, relatedOps, CATEGORIES } from './core/registry';

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import '../operations'; // registers the whole library
 import { useRoute, navigate, usePrefs, useClock } from '../hooks/useApp';
 import { getPrefs, initStore, setPrefs } from '../services/store';
@@ -26,40 +26,19 @@ function Header({ routeName }: { routeName: string }) {
   const prefs = usePrefs();
   const clock = useClock();
   const [menuOpen, setMenuOpen] = useState(false);
-  const navRef = useRef<HTMLElement | null>(null);
-  const [pill, setPill] = useState<{ left: number; width: number; opacity: number }>({ left: 0, width: 0, opacity: 0 });
-
-  const movePillTo = (el: HTMLElement | null) => {
-    if (!el || !navRef.current) { setPill((p) => ({ ...p, opacity: 0 })); return; }
-    const r = el.getBoundingClientRect();
-    const nr = navRef.current.getBoundingClientRect();
-    setPill({ left: r.left - nr.left, width: r.width, opacity: 1 });
-  };
-  // Pill rests on the active tab, chases the hover, glides back on leave.
-  useEffect(() => {
-    movePillTo(navRef.current?.querySelector('.nav__link--on') as HTMLElement | null);
-    const onResize = () => movePillTo(navRef.current?.querySelector('.nav__link--on') as HTMLElement | null);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [routeName]);
-
   return (
     <header className="app-header">
       <button type="button" className="brand" onClick={() => navigate('/')} aria-label="VR KRYPTA home">
         <BrandMark size={30} />
         <span className="brand__word">VR KRYPTA</span>
       </button>
-      <nav ref={navRef} className={`nav ${menuOpen ? 'nav--open' : ''}`} aria-label="Main"
-        onMouseLeave={() => movePillTo(navRef.current?.querySelector('.nav__link--on') as HTMLElement | null)}
-      >
-        <span className="nav-pill" aria-hidden="true" style={{ left: pill.left, width: pill.width, opacity: pill.opacity }} />
+      <nav className={`nav ${menuOpen ? 'nav--open' : ''}`} aria-label="Main">
         {NAV.map((n) => (
           <button
             key={n.path}
             type="button"
             className={`nav__link ${(n.path === '/' ? routeName === 'home' : n.path.slice(1) === routeName) ? 'nav__link--on' : ''}`}
             onClick={() => { navigate(n.path); setMenuOpen(false); }}
-            onMouseEnter={(e) => movePillTo(e.currentTarget)}
           >
             <Icon name={n.icon} size={14} /> {n.label}
           </button>
@@ -68,7 +47,6 @@ function Header({ routeName }: { routeName: string }) {
           type="button"
           className={`nav__link ${routeName === 'about' ? 'nav__link--on' : ''}`}
           onClick={() => { navigate('/about'); setMenuOpen(false); }}
-          onMouseEnter={(e) => movePillTo(e.currentTarget)}
         >
           <Icon name="info" size={14} /> ABOUT
         </button>

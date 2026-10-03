@@ -335,100 +335,53 @@ export function Tilt3D({ children, className, max = 14 }: { children: React.Reac
   );
 }
 
-/* ---------------------------------------------------------------------------
-   ROLODEX — origami split-flap: current plate folds away while the next
-   bottom half rises. Pure CSS 3D + one interval.
---------------------------------------------------------------------------- */
-export interface RolodexItem { icon: string; big: string; small: string; }
-
-export function Rolodex({ items, intervalMs = 2600 }: { items: RolodexItem[]; intervalMs?: number }) {
-  const [index, setIndex] = useState(0);
-  const [flipping, setFlipping] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const reduced = usePrefersReducedMotion();
-  const TRANSITION = 650;
-
-  const clearTimer = () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
-  const arm = (ms: number) => {
-    clearTimer();
-    timerRef.current = setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
-      if (reduced) { setIndex((i) => i + 1); return; }
-      if (flipping) return;
-      setFlipping(true);
-    }, ms);
-  };
-  useEffect(() => { arm(intervalMs); return clearTimer; }, [intervalMs, reduced, flipping]);
-
-  const cur = items[index % items.length];
-  const next = items[(index + 1) % items.length];
-
-  const plate = (it: RolodexItem, half: 'top' | 'bottom' | 'full') => (
-    <div className={`rplate rplate--${half}`} aria-hidden={half !== 'full'}>
-      <Icon name={it.icon} size={26} />
-      <span className="rplate__big">{it.big}</span>
-      <span className="rplate__small">{it.small}</span>
-    </div>
-  );
-
-  return (
-    <div
-      className={`rolodex ${flipping ? 'rolodex--flipping' : ''}`}
-      onAnimationEnd={() => { if (flipping) { setIndex((i) => i + 1); setFlipping(false); } }}
-      role="marquee"
-      aria-label={`Highlight: ${cur.big} — ${cur.small}`}
-    >
-      {flipping ? (
-        <>
-          <div className="rplate__layer rplate__layer--base">{plate(cur, 'full')}</div>
-          <div className="rplate__layer rplate__layer--next rplate__layer--topclip">{plate(next, 'top')}</div>
-          <div className="rplate__layer rplate__layer--flap-top">{plate(cur, 'top')}</div>
-          <div className="rplate__layer rplate__layer--flap-bottom">{plate(next, 'bottom')}</div>
-        </>
-      ) : (
-        <div className="rplate__layer rplate__layer--base">{plate(cur, 'full')}</div>
-      )}
-      <div className="rolodex__seam" aria-hidden="true" />
-    </div>
-  );
-}
 
 /* ---------------------------------------------------------------------------
    VELOCITY MARQUEE — endlessly drifting strip that SKEWS with scroll speed.
    Constant drift via rAF offset; skew spring-lerps toward scroll velocity.
 --------------------------------------------------------------------------- */
 export function VelocityMarquee({ text }: { text: string }) {
-  const skewRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
   const reduced = usePrefersReducedMotion();
 
   useEffect(() => {
     if (reduced) return;
     let raf = 0;
+    let x = 0;
     let lastY = window.scrollY;
     let skew = 0;
+    let vel = 0;
     const tick = () => {
       const y = window.scrollY;
-      const delta = y - lastY;
+      const d = y - lastY;
       lastY = y;
-      const target = Math.max(-20, Math.min(20, delta * 1.4));
-      skew += (target - skew) * 0.12; // spring easing
-      if (skewRef.current) skewRef.current.style.transform = `skewX(${skew.toFixed(2)}deg)`;
+      // springs: velocity + skew chase scroll, settle back to 0 when calm
+      vel += (Math.min(10, Math.abs(d) * 0.55) - vel) * 0.1;
+      const skewTarget = Math.max(-30, Math.min(30, d * 2.0));
+      skew += (skewTarget - skew) * (Math.abs(skewTarget) > Math.abs(skew) ? 0.18 : 0.07);
+      x -= 0.7 + vel;
+      const track = trackRef.current;
+      if (track) {
+        const half = track.scrollWidth / 2;
+        if (half > 0 && -x >= half) x += half;
+        track.style.transform = `translate3d(${x.toFixed(1)}px,0,0) skewX(${skew.toFixed(2)}deg)`;
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [reduced]);
+  }, [reduced, text]);
 
-  const strip = (key: string) => (
-    <span key={key} className="vmarquee__chunk" aria-hidden={key.startsWith('b')}>
+  const chunk = (key: string) => (
+    <span key={key} className="vmarquee__chunk" aria-hidden={key === 'b'}>
       {text}&nbsp;&nbsp;{text}&nbsp;&nbsp;
     </span>
   );
 
   return (
     <div className={`vmarquee ${reduced ? 'vmarquee--static' : ''}`} aria-label={text}>
-      <div ref={skewRef} className="vmarquee__track">
-        {[strip('a'), strip('b'), strip('a2'), strip('b2')]}
+      <div ref={trackRef} className="vmarquee__track">
+        {[chunk('a'), chunk('b')]}
       </div>
     </div>
   );

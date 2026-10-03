@@ -12,7 +12,7 @@ A **VR DEVELOPMENTS** project.
 
 Not another Base64 page. VR KRYPTA is a unified toolkit built around a single idea: **every transformation is a first-class, typed operation** registered in one engine. The same contract powers the searchable library, the universal workspace, and the pipeline lab.
 
-- **189 operations** across 9 categories — codes & representations, classical ciphers, encodings, hashing, compression, byte operations, text transforms, analysis, and cryptanalysis & detection. Every operation is genuinely implemented; there are no placeholders.
+- **188 operations** across 9 categories — codes & representations, classical ciphers, encodings, hashing, compression, byte operations, text transforms, analysis, and cryptanalysis & detection. Every operation is genuinely implemented; there are no placeholders.
 - **Universal workspace** — one interface that adapts to each operation's contract. Hashes never show a "Decode" button because hashes cannot be decoded.
 - **Pipeline lab** — chain operations (`Text → Caesar → Base64`), inspect every intermediate hop, export/import pipelines as validated JSON.
 - **Python in the browser** — selected operations (SHA-3, BLAKE2, Hill, Bifid, Trifid, Nihilist, Four-square, Fractionated Morse) run on real CPython via Pyodide/WebAssembly, lazily downloaded once and executed locally.
@@ -23,8 +23,7 @@ Not another Base64 page. VR KRYPTA is a unified toolkit built around a single id
 
 - Classical ciphers are historical study objects — every cipher page says so.
 - The **Secret Message Locker** is the one deliberately modern exception: real AES-256-GCM with PBKDF2-SHA-256 key stretching (200k rounds), fresh random salt/IV per message, and it still warns that its strength is bounded by the passphrase.
-- **Sharing is local-first too:** the SECRET DROP page and every operation's **Share result** button pack the data into the URL hash (`VK1.…` blobs or `x/<op>/<base64url>`), generate a QR from it, and never send bytes to any server. Links work fully offline once the PWA is cached.
-- QR generation is vendored from the widely-vetted `qrcode-generator` library (MIT, kazuhikoarase) via npm — provenance stated in-app.
+- **Sharing is local-first too:** the SECRET DROP page and every operation's **Share result** button pack the data into the URL hash (`VK1.…` blobs or `x/<op>/<base64url>`), and never send bytes to any server. Links work fully offline once the PWA is cached.
 - MD5 and SHA-1 carry explicit collision warnings.
 - Hashes are one-way: you can *verify* a digest, never "decode" one.
 - This is an exploration/education toolkit, not a password manager or a substitute for professional cryptographic review.
