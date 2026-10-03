@@ -10,6 +10,10 @@ import { callPython, onPythonState, pythonState } from '../services/python';
 import { Icon } from '../ui/icons';
 import { Chip, CopyButton, EmptyState, downloadText, useToast } from '../ui/components';
 import { OptionField } from '../ui/OptionsField';
+import { SpringModal } from '../ui/modal';
+import { ScrambleButton } from '../ui/fx';
+import { capturedFragment, capturedInvite, SHARE_TEXT_LIMIT } from '../services/share';
+import { renderQR } from '../operations/qr';
 
 const ctx: OpContext = { python: (fn, args) => callPython<string>(fn, args) };
 
@@ -32,10 +36,20 @@ export function Workspace({ opId }: { opId: string }) {
 
   useEffect(() => {
     setOptions(op ? defaultOptions(op) : {});
-    setInput('');
     setOutput(null);
     setError(null);
     setInputHex(false);
+    // Deep-link prefill: "Transform it here" from a shared result drops the
+    // shared code straight into the input box of the right operation.
+    const preKey = `vrk:prefill:${opId}`;
+    const pre = sessionStorage.getItem(preKey);
+    if (pre) {
+      sessionStorage.removeItem(preKey);
+      setInput(pre);
+      toast('Shared code loaded — hit the transform action', 'ok');
+    } else {
+      setInput('');
+    }
     inputRef.current?.focus();
   }, [opId, op]);
 
@@ -104,6 +118,24 @@ export function Workspace({ opId }: { opId: string }) {
   };
 
   const hexRenderForInput = (v: IOValue) => v.text;
+
+  // Spring share pop: QR + link + ready-made invite, no page change.
+  const [shareOpen, setShareOpen] = useState<{ text: string; url: string } | null>(null);
+  const shareResult = (oid: string, text: string) => {
+    if (text.length > SHARE_TEXT_LIMIT) {
+      toast(`Result is ${text.length} chars — too long for a link/QR (max ${SHARE_TEXT_LIMIT}). Download it instead.`, 'err');
+      return;
+    }
+    setShareOpen({ text, url: `${location.origin}${import.meta.env.BASE_URL}#/share/${capturedFragment(oid, text)}` });
+  };
+  const shareQr = useMemo(() => {
+    if (!shareOpen) return null;
+    try { return renderQR(shareOpen.url, 'M', true); } catch { return null; }
+  }, [shareOpen]);
+  const copyShare = async (t: string, msg: string) => {
+    try { await navigator.clipboard.writeText(t); toast(msg, 'ok'); }
+    catch { toast('Clipboard blocked — copy manually', 'err'); }
+  };
 
   const actionTone = (kind: string) =>
     kind === 'decode' || kind === 'decompress' ? 'btn--violet'
@@ -244,16 +276,14 @@ export function Workspace({ opId }: { opId: string }) {
 
           <div className="run-row">
             {op.actions.map((a) => (
-              <button
+              <ScrambleButton
                 key={a.id}
-                type="button"
-                className={`btn ${actionTone(a.kind)} btn--lg`}
+                label={running === a.id ? 'RUNNING…' : a.label}
+                icon={running === a.id ? undefined : (a.kind === 'analyze' ? 'chart' : a.kind === 'verify' ? 'check' : a.kind === 'decode' || a.kind === 'decompress' ? 'key' : 'bolt')}
+                className={`${actionTone(a.kind)} btn--lg`}
                 disabled={running !== null}
                 onClick={() => void run(a.id)}
-              >
-                {running === a.id ? <span className="spinner" /> : <Icon name={a.kind === 'analyze' ? 'chart' : a.kind === 'verify' ? 'check' : a.kind === 'decode' || a.kind === 'decompress' ? 'key' : 'bolt'} size={15} />}
-                {a.label}
-              </button>
+              />
             ))}
             <button
               type="button"
@@ -297,6 +327,14 @@ export function Workspace({ opId }: { opId: string }) {
                 >
                   <Icon name="download" size={13} /> Download
                 </button>
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  title="Turn this result into a share link + QR the recipient can open on VR KRYPTA"
+                  onClick={() => shareResult(op.id, outputText)}
+                >
+                  <Icon name="link" size={13} /> Share result
+                </button>
               </div>
             </>
           ) : (
@@ -332,6 +370,33 @@ export function Workspace({ opId }: { opId: string }) {
           )}
         </section>
       )}
+
+      <SpringModal open={shareOpen !== null} onClose={() => setShareOpen(null)} title="Share this result" watermarkIcon="link">
+        {shareOpen && (
+          <>
+            <p className="smodal__tagline">One link. One QR. Nothing stored anywhere — the data rides inside the URL itself.</p>
+            {shareQr && <div className="share__qrframe smodal__qr"><pre className="share__qr">{shareQr}</pre></div>}
+            <div className="share__blob share__blob--code smodal__code">{shareOpen.text.length > 240 ? shareOpen.text.slice(0, 240) + '…' : shareOpen.text}</div>
+            <div className="smodal__actions">
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copyShare(shareOpen.text, 'Code copied')}>
+                <Icon name="copy" size={13} /> Code
+              </button>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copyShare(shareOpen.url, 'Link copied')}>
+                <Icon name="link" size={13} /> Link
+              </button>
+              <button type="button" className="btn btn--primary btn--sm" style={{ flex: 1 }} onClick={() => void copyShare(capturedInvite(op.name, shareOpen.url), 'Invite copied — paste into WhatsApp / mail / anywhere')}>
+                <Icon name="type" size={13} /> Copy invite
+              </button>
+              {typeof navigator.share === 'function' && (
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => void navigator.share({ title: `VR KRYPTA — ${op.name}`, text: capturedInvite(op.name, shareOpen.url) }).catch(() => undefined)}>
+                  <Icon name="signal" size={13} /> Share…
+                </button>
+              )}
+            </div>
+            <p className="share__fine">Whoever opens it gets a branded page with a “Transform it here” button that loads this code into the right tool.</p>
+          </>
+        )}
+      </SpringModal>
     </div>
   );
 }

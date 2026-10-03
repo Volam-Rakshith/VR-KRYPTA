@@ -3,7 +3,7 @@ import { opCount, CATEGORIES, categoryCount, getOp } from '../operations';
 import { useAppData, usePrefs, navigate } from '../hooks/useApp';
 import { Icon } from '../ui/icons';
 import { CopyButton, Chip, EmptyState } from '../ui/components';
-import { TiltLogo } from '../ui/fx';
+import { TiltLogo, VelocityMarquee } from '../ui/fx';
 
 function greeting(name: string | null): string {
   if (!name) return 'WELCOME BACK.';
@@ -49,6 +49,8 @@ export function Dashboard() {
           <Icon name="shield" size={13} /> LOCAL-FIRST — transformations run in your browser. No accounts, no uploads.
         </p>
       </section>
+
+      <VelocityMarquee text="TRANSFORM • DECIPHER • ANALYZE • 189 OPERATIONS • ONE BROWSER • ZERO UPLOADS • VR KRYPTA BY VR DEVELOPMENTS •" />
 
       <section className="dash-section">
         <h2 className="section-title"><Icon name="grid" size={16} /> Categories</h2>

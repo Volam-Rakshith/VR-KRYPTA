@@ -1,5 +1,6 @@
 // Renders one option control from an operation's OptionField schema.
 import type { OptionField as OptionFieldDef } from '../operations/core/types';
+import { Select } from './select';
 
 export function OptionField({ def, value, onChange }: {
   def: OptionFieldDef;
@@ -39,9 +40,12 @@ export function OptionField({ def, value, onChange }: {
     return (
       <label className="opt">
         <span className="opt__label">{def.label}</span>
-        <select className="select" value={String(value ?? def.default)} onChange={(e) => onChange(e.target.value)}>
-          {def.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+        <Select
+          value={String(value ?? def.default)}
+          onChange={onChange}
+          ariaLabel={def.label}
+          options={def.options.map((o) => ({ value: o.value, label: o.label }))}
+        />
         {def.help && <span className="opt__help">{def.help}</span>}
       </label>
     );

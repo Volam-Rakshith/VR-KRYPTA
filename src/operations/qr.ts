@@ -11,9 +11,9 @@ import { utf8, hexToBytes, bytesToHex } from '../utils/bytes';
 
 /* ------------------------------ QR generator ------------------------------- */
 
-type Ecc = 'L' | 'M' | 'Q' | 'H';
+export type Ecc = 'L' | 'M' | 'Q' | 'H';
 
-function renderQR(text: string, ecc: Ecc, half: boolean): string {
+export function renderQR(text: string, ecc: Ecc, half: boolean): string {
   const qr = qrcode(0, ecc);
   qr.addData(text, 'Byte');
   qr.make();
@@ -174,6 +174,25 @@ async function lockerKey(pass: string, salt: Uint8Array, rounds: number): Promis
   );
 }
 
+/** Lock a message: returns the portable VK1.salt.iv.ct blob. */
+export async function lockerEncrypt(message: string, pass: string): Promise<string> {
+  if (pass.length < 6) throw new Error('Give a passphrase of 6+ characters (share it with the recipient privately).');
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await lockerKey(pass, salt, 200_000);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: toRigid(iv) }, key, toRigid(utf8.encode(message))));
+  return `VK1.${b64url(salt)}.${b64url(iv)}.${b64url(ct)}`;
+}
+
+/** Unlock a VK1 blob; throws on wrong passphrase or corruption. */
+export async function lockerDecrypt(payload: string, pass: string): Promise<string> {
+  const m = payload.trim().match(/VK1\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)/);
+  if (!m) throw new Error('No VK1 payload found.');
+  const key = await lockerKey(pass, unb64url(m[1]), 200_000);
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: toRigid(unb64url(m[2])) }, key, toRigid(unb64url(m[3])));
+  return utf8.decodeStrict(new Uint8Array(pt));
+}
+
 defineOp({
   id: 'message-locker',
   name: 'Secret Message Locker (AES-256-GCM)',
@@ -196,12 +215,8 @@ defineOp({
         const pass = String(o.passphrase ?? '');
         if (pass.length < 6) throw new Error('Give a passphrase of 6+ characters (share it with the recipient privately).');
         if (!v.text) throw new Error('Nothing to lock — type the secret message first.');
-        const salt = crypto.getRandomValues(new Uint8Array(16));
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const key = await lockerKey(pass, salt, 200_000);
-        const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: toRigid(iv) }, key, toRigid(utf8.encode(v.text))));
-        const blob = `VK1.${b64url(salt)}.${b64url(iv)}.${b64url(ct)}`;
-        return textValue(`${blob}\n\n— AES-256-GCM + PBKDF2(200k). Send this blob any way you like (QR Generator makes it scannable); only the passphrase opens it. Each lock uses a fresh random salt/IV.`, 'encoded');
+        const blob = await lockerEncrypt(v.text, pass);
+        return textValue(blob, 'encoded');
       }
     },
     {
@@ -210,7 +225,7 @@ defineOp({
         const pass = String(o.passphrase ?? '');
         if (!pass) throw new Error('Enter the passphrase this message was locked with.');
         const m = v.text.trim().match(/VK1\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)/);
-        if (!m) throw new Error('No VK1 payload found — paste the blob starting "VK1." (the explanatory footer is fine to include).');
+        if (!m) throw new Error('No VK1 payload found — paste the blob starting "VK1."');
         try {
           const key = await lockerKey(pass, unb64url(m[1]), 200_000);
           const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: toRigid(unb64url(m[2])) }, key, toRigid(unb64url(m[3])));
@@ -222,6 +237,6 @@ defineOp({
     }
   ],
   examples: [{ label: 'A secret', input: 'meet at the old lighthouse at midnight 🔦' }],
-  docs: 'Unlike everything else in this section, this is real modern cryptography: a random 128-bit salt, 200k rounds of PBKDF2-SHA-256 to stretch your passphrase into a 256-bit key, then AES-GCM which also AUTHENTICATES the ciphertext (tampering breaks the decrypt loudly). Format: VK1.salt.iv.ciphertext, all base64url. Pair with the QR Code Generator to send secrets through images or paper.',
+  docs: 'Unlike everything else in this section, this is real modern cryptography: a random 128-bit salt, 200k rounds of PBKDF2-SHA-256 to stretch your passphrase into a 256-bit key, then AES-GCM which also AUTHENTICATES the ciphertext (tampering breaks the decrypt loudly). Format: VK1.salt.iv.ciphertext, all base64url — each lock uses a fresh random salt/IV, so the same message seals differently every time. The output is a single clean line that copies straight into a QR code or a SECRET DROP share link.',
   warnings: ['Strength is bound by the passphrase — a 6-letter one is only a toy. Use a long random passphrase shared over a separate channel for anything that matters.']
 });

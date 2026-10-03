@@ -3,7 +3,7 @@
 // pointer-fine only, and never blocks interaction (pointer-events: none).
 import { useEffect, useRef, useState } from 'react';
 import { getPrefs } from '../services/store';
-import { BrandMark } from './icons';
+import { Icon, BrandMark } from './icons';
 
 function reducedMotion(): boolean {
   return typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -225,6 +225,210 @@ export function BootScreen({ onDone }: { onDone: () => void }) {
           ))}
         </div>
         <div className="boot__skip">click to skip</div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   SCRAMBLE BUTTON — hover decodes the label through cipher noise.
+   Ported dependency-free from the "encrypt button" interaction: random
+   glyph noise resolves left→right, with a sweeping gradient scan band.
+--------------------------------------------------------------------------- */
+const SCRAMBLE_POOL = '!@#$%^&*ΨΦΔΞΩ§†‡≡¤<>/|\\{}[]()';
+
+function usePrefersReducedMotion(): boolean {
+  const [prm, setPrm] = useState(() => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  useEffect(() => {
+    if (typeof matchMedia === 'undefined') return;
+    const mq = matchMedia('(prefers-reduced-motion: reduce)');
+    const fn = () => setPrm(mq.matches);
+    mq.addEventListener('change', fn);
+    return () => mq.removeEventListener('change', fn);
+  }, []);
+  return prm;
+}
+
+interface ScrambleButtonProps {
+  label: string;
+  icon?: string;
+  className?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  type?: 'button' | 'submit';
+  title?: string;
+}
+
+export function ScrambleButton({ label, icon, className, onClick, disabled, type = 'button', title }: ScrambleButtonProps) {
+  const [text, setText] = useState(label);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reduced = usePrefersReducedMotion();
+
+  useEffect(() => setText(label), [label]);
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
+  const stop = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    setText(label);
+  };
+
+  const start = () => {
+    if (reduced || timerRef.current) return;
+    let pos = 0;
+    const cycles = 2;
+    timerRef.current = setInterval(() => {
+      pos++;
+      const out = label
+        .split('')
+        .map((ch, i) => (pos / cycles > i ? ch : ch === ' ' ? ' ' : SCRAMBLE_POOL[(Math.random() * SCRAMBLE_POOL.length) | 0]))
+        .join('');
+      setText(out);
+      if (pos >= label.length * cycles) stop();
+    }, 26);
+  };
+
+  return (
+    <button
+      type={type}
+      disabled={disabled}
+      title={title}
+      className={`btn btn--scramble ${className ?? ''}`}
+      onClick={onClick}
+      onMouseEnter={start}
+      onMouseLeave={stop}
+      onFocus={start}
+      onBlur={stop}
+    >
+      {icon && <Icon name={icon} size={15} />}
+      <span className="btn__scramble-text" aria-label={label}>{text}</span>
+    </button>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   TILT 3D — pointer-tracked perspective card with layered depth.
+   Children can opt into depth planes with the attribute data-z="<px>".
+--------------------------------------------------------------------------- */
+export function Tilt3D({ children, className, max = 14 }: { children: React.ReactNode; className?: string; max?: number }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const reduced = usePrefersReducedMotion();
+
+  const onMove = (e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el || reduced) return;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    el.style.transform = `rotateX(${(-py * max).toFixed(2)}deg) rotateY(${(px * max).toFixed(2)}deg)`;
+  };
+  const onLeave = () => {
+    if (ref.current) ref.current.style.transform = 'rotateX(0deg) rotateY(0deg)';
+  };
+
+  return (
+    <div className={`tilt3d-scene ${className ?? ''}`} onMouseMove={onMove} onMouseLeave={onLeave}>
+      <div ref={ref} className="tilt3d-card" style={{ transformStyle: 'preserve-3d' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   ROLODEX — origami split-flap: current plate folds away while the next
+   bottom half rises. Pure CSS 3D + one interval.
+--------------------------------------------------------------------------- */
+export interface RolodexItem { icon: string; big: string; small: string; }
+
+export function Rolodex({ items, intervalMs = 2600 }: { items: RolodexItem[]; intervalMs?: number }) {
+  const [index, setIndex] = useState(0);
+  const [flipping, setFlipping] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reduced = usePrefersReducedMotion();
+  const TRANSITION = 650;
+
+  const clearTimer = () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+  const arm = (ms: number) => {
+    clearTimer();
+    timerRef.current = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      if (reduced) { setIndex((i) => i + 1); return; }
+      if (flipping) return;
+      setFlipping(true);
+    }, ms);
+  };
+  useEffect(() => { arm(intervalMs); return clearTimer; }, [intervalMs, reduced, flipping]);
+
+  const cur = items[index % items.length];
+  const next = items[(index + 1) % items.length];
+
+  const plate = (it: RolodexItem, half: 'top' | 'bottom' | 'full') => (
+    <div className={`rplate rplate--${half}`} aria-hidden={half !== 'full'}>
+      <Icon name={it.icon} size={26} />
+      <span className="rplate__big">{it.big}</span>
+      <span className="rplate__small">{it.small}</span>
+    </div>
+  );
+
+  return (
+    <div
+      className={`rolodex ${flipping ? 'rolodex--flipping' : ''}`}
+      onAnimationEnd={() => { if (flipping) { setIndex((i) => i + 1); setFlipping(false); } }}
+      role="marquee"
+      aria-label={`Highlight: ${cur.big} — ${cur.small}`}
+    >
+      {flipping ? (
+        <>
+          <div className="rplate__layer rplate__layer--base">{plate(cur, 'full')}</div>
+          <div className="rplate__layer rplate__layer--next rplate__layer--topclip">{plate(next, 'top')}</div>
+          <div className="rplate__layer rplate__layer--flap-top">{plate(cur, 'top')}</div>
+          <div className="rplate__layer rplate__layer--flap-bottom">{plate(next, 'bottom')}</div>
+        </>
+      ) : (
+        <div className="rplate__layer rplate__layer--base">{plate(cur, 'full')}</div>
+      )}
+      <div className="rolodex__seam" aria-hidden="true" />
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   VELOCITY MARQUEE — endlessly drifting strip that SKEWS with scroll speed.
+   Constant drift via rAF offset; skew spring-lerps toward scroll velocity.
+--------------------------------------------------------------------------- */
+export function VelocityMarquee({ text }: { text: string }) {
+  const skewRef = useRef<HTMLDivElement | null>(null);
+  const reduced = usePrefersReducedMotion();
+
+  useEffect(() => {
+    if (reduced) return;
+    let raf = 0;
+    let lastY = window.scrollY;
+    let skew = 0;
+    const tick = () => {
+      const y = window.scrollY;
+      const delta = y - lastY;
+      lastY = y;
+      const target = Math.max(-20, Math.min(20, delta * 1.4));
+      skew += (target - skew) * 0.12; // spring easing
+      if (skewRef.current) skewRef.current.style.transform = `skewX(${skew.toFixed(2)}deg)`;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [reduced]);
+
+  const strip = (key: string) => (
+    <span key={key} className="vmarquee__chunk" aria-hidden={key.startsWith('b')}>
+      {text}&nbsp;&nbsp;{text}&nbsp;&nbsp;
+    </span>
+  );
+
+  return (
+    <div className={`vmarquee ${reduced ? 'vmarquee--static' : ''}`} aria-label={text}>
+      <div ref={skewRef} className="vmarquee__track">
+        {[strip('a'), strip('b'), strip('a2'), strip('b2')]}
       </div>
     </div>
   );

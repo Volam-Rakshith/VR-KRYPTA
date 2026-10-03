@@ -23,6 +23,7 @@ Not another Base64 page. VR KRYPTA is a unified toolkit built around a single id
 
 - Classical ciphers are historical study objects — every cipher page says so.
 - The **Secret Message Locker** is the one deliberately modern exception: real AES-256-GCM with PBKDF2-SHA-256 key stretching (200k rounds), fresh random salt/IV per message, and it still warns that its strength is bounded by the passphrase.
+- **Sharing is local-first too:** the SECRET DROP page and every operation's **Share result** button pack the data into the URL hash (`VK1.…` blobs or `x/<op>/<base64url>`), generate a QR from it, and never send bytes to any server. Links work fully offline once the PWA is cached.
 - QR generation is vendored from the widely-vetted `qrcode-generator` library (MIT, kazuhikoarase) via npm — provenance stated in-app.
 - MD5 and SHA-1 carry explicit collision warnings.
 - Hashes are one-way: you can *verify* a digest, never "decode" one.

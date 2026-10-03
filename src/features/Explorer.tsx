@@ -5,6 +5,7 @@ import type { CategoryId, OperationDefinition } from '../operations/core/types';
 import { navigate, useAppData } from '../hooks/useApp';
 import { toggleFavorite } from '../services/store';
 import { Icon } from '../ui/icons';
+import { Select } from '../ui/select';
 import { Chip, EmptyState, useToast } from '../ui/components';
 
 export function OpCard({ op, focused, onFocus }: { op: OperationDefinition; focused?: boolean; onFocus?: () => void }) {
@@ -162,9 +163,13 @@ export function Explorer({ initialCategory }: { initialCategory?: string }) {
             <input type="checkbox" checked={oneWayOnly} onChange={(e) => { setOneWayOnly(e.target.checked); if (e.target.checked) setRevOnly(false); }} />
             <span className="toggle__track" /> one-way
           </label>
-          <select className="select" value={engine} onChange={(e) => setEngine(e.target.value as typeof engine)} aria-label="Engine filter">
-            {ENGINE_FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-          </select>
+          <Select
+            className="sel--filter"
+            value={engine}
+            onChange={(v) => setEngine(v as typeof engine)}
+            ariaLabel="Engine filter"
+            options={ENGINE_FILTERS as unknown as { value: string; label: string }[]}
+          />
         </div>
       </div>
 

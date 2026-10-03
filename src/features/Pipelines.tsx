@@ -12,6 +12,7 @@ import type { PipelineStep, SavedPipeline } from '../services/store';
 import { useAppData } from '../hooks/useApp';
 import { callPython } from '../services/python';
 import { Icon } from '../ui/icons';
+import { Select } from '../ui/select';
 import { Chip, CopyButton, ConfirmModal, EmptyState, downloadText, useToast } from '../ui/components';
 import { OptionField } from '../ui/OptionsField';
 
@@ -269,14 +270,14 @@ export function Pipelines() {
                       patchStep(i, { opId: id, actionId: o.actions[0].id, options: defaultOptions(o) });
                     }}
                   />
-                  <select
-                    className="select"
+                  <Select
+                    className="sel--action"
                     value={step.actionId}
-                    onChange={(e) => patchStep(i, { actionId: e.target.value })}
-                    aria-label="Action"
-                  >
-                    {op?.actions.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
-                  </select>
+                    onChange={(v) => patchStep(i, { actionId: v })}
+                    ariaLabel="Action"
+                    options={op?.actions.map((a) => ({ value: a.id, label: a.label })) ?? []}
+                    maxHeight={200}
+                  />
                   <div className="pipeline-step__tools">
                     <label className="toggle" title="Enable / disable step">
                       <input type="checkbox" checked={step.enabled} onChange={(e) => patchStep(i, { enabled: e.target.checked })} />
