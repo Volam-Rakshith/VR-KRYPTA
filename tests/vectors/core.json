@@ -1,0 +1,643 @@
+{
+  "morse.encode": [
+    {
+      "input": "SOS",
+      "output": "... --- ..."
+    },
+    {
+      "input": "HELLO WORLD",
+      "options": {
+        "dot": ".",
+        "dash": "-"
+      },
+      "output": ".... . .-.. .-.. --- / .-- --- .-. .-.. -.."
+    },
+    {
+      "input": "PARIS 2026",
+      "output": ".--. .- .-. .. ... / ..--- ----- ..--- -...."
+    }
+  ],
+  "morse.decode": [
+    {
+      "input": "... --- ...",
+      "output": "SOS"
+    },
+    {
+      "input": "-.. --- --.",
+      "output": "DOG"
+    }
+  ],
+  "a1z26.encode": [
+    {
+      "input": "ABC",
+      "output": "1 - 2 - 3"
+    },
+    {
+      "input": "Z",
+      "options": {
+        "zeroBased": true
+      },
+      "output": "25"
+    }
+  ],
+  "a1z26.decode": [
+    {
+      "input": "8 5 12 12 15",
+      "output": "HELLO"
+    }
+  ],
+  "baconian.encode": [
+    {
+      "input": "AB",
+      "options": {
+        "variant": "26",
+        "symA": "A",
+        "symB": "B"
+      },
+      "output": "AAAAA AAAAB"
+    },
+    {
+      "input": "K",
+      "options": {
+        "variant": "24",
+        "symA": "0",
+        "symB": "1"
+      },
+      "output": "01001"
+    }
+  ],
+  "tap-code.encode": [
+    {
+      "input": "WATER",
+      "options": {
+        "format": "digits"
+      },
+      "output": "52 11 44 15 42"
+    }
+  ],
+  "tap-code.decode": [
+    {
+      "input": "43 23 11 25 15",
+      "output": "SHAKE"
+    }
+  ],
+  "polybius.encode": [
+    {
+      "input": "POLYBIUS",
+      "output": "35 34 31 54 12 24 45 43"
+    }
+  ],
+  "caesar.encipher": [
+    {
+      "input": "VENI VIDI VICI",
+      "options": {
+        "shift": 3
+      },
+      "output": "YHQL YLGL YLFL"
+    },
+    {
+      "input": "Attack at dawn!",
+      "options": {
+        "shift": 23
+      },
+      "output": "XQQXZH XQ AXTK!"
+    }
+  ],
+  "caesar.decipher": [
+    {
+      "input": "YHQL YLGL YLFL",
+      "options": {
+        "shift": 3
+      },
+      "output": "VENI VIDI VICI"
+    }
+  ],
+  "rot13.apply": [
+    {
+      "input": "URYYB JBEYQ",
+      "output": "HELLO WORLD"
+    },
+    {
+      "input": "HELLO",
+      "output": "URYYB"
+    }
+  ],
+  "atbash.encipher": [
+    {
+      "input": "ZOO",
+      "output": "ALL"
+    },
+    {
+      "input": "GSVIVZ",
+      "output": "THEREA"
+    }
+  ],
+  "affine.encipher": [
+    {
+      "input": "AFFINE CIPHER",
+      "options": {
+        "a": 5,
+        "b": 8
+      },
+      "output": "IHHWVC SWFRCP"
+    }
+  ],
+  "affine.decipher": [
+    {
+      "input": "IHHWVC SWFRCP",
+      "options": {
+        "a": 5,
+        "b": 8
+      },
+      "output": "AFFINE CIPHER"
+    }
+  ],
+  "vigenere.encipher": [
+    {
+      "input": "ATTACKATDAWN",
+      "options": {
+        "key": "LEMON"
+      },
+      "output": "LXFOPVEFRNHR"
+    }
+  ],
+  "vigenere.decipher": [
+    {
+      "input": "LXFOPVEFRNHR",
+      "options": {
+        "key": "LEMON"
+      },
+      "output": "ATTACKATDAWN"
+    }
+  ],
+  "beaufort.encipher": [
+    {
+      "input": "DEFENDTHEEASTWALL",
+      "options": {
+        "key": "FORTIFICATION"
+      },
+      "output": "CKMPVCPVWPIWUJOGI"
+    }
+  ],
+  "autokey.encipher": [
+    {
+      "input": "ATTACKATDAWN",
+      "options": {
+        "key": "QUEENLY"
+      },
+      "output": "QNXEPVYTWTWP"
+    }
+  ],
+  "rail-fence.encipher": [
+    {
+      "input": "DEFENDTHEEASTWALL",
+      "options": {
+        "rails": 3
+      },
+      "output": "DNETLEEDHESWLFTAA"
+    }
+  ],
+  "playfair.encipher": [
+    {
+      "input": "HIDETHEGOLDINTHETREESTUMP",
+      "options": {
+        "key": "PLAYFAIR EXAMPLE"
+      },
+      "output": "BM OD ZB XD NA BE KU DM UI XM MO UV IF"
+    }
+  ],
+  "base64.encode": [
+    {
+      "input": "foo",
+      "output": "Zm9v"
+    },
+    {
+      "input": "Hello, World!",
+      "output": "SGVsbG8sIFdvcmxkIQ=="
+    }
+  ],
+  "base64.decode": [
+    {
+      "input": "SGVsbG8=",
+      "output": "Hello"
+    }
+  ],
+  "base32.encode": [
+    {
+      "input": "f",
+      "output": "MY======"
+    },
+    {
+      "input": "foobar",
+      "output": "MZXW6YTBOI======"
+    }
+  ],
+  "base32.decode": [
+    {
+      "input": "MZXW6YTBOI======",
+      "output": "foobar"
+    }
+  ],
+  "base58.encode": [
+    {
+      "input": "Hello World!",
+      "output": "2NEpo7TZRRrLZSi2U"
+    }
+  ],
+  "base85.encode": [
+    {
+      "input": "Man ",
+      "output": "9jqo^"
+    }
+  ],
+  "percent-encoding.encode": [
+    {
+      "input": "a b&c",
+      "options": {
+        "mode": "component"
+      },
+      "output": "a%20b%26c"
+    }
+  ],
+  "quoted-printable.encode": [
+    {
+      "input": "foo=bar",
+      "output": "foo=3Dbar"
+    }
+  ],
+  "md5.hash": [
+    {
+      "input": "",
+      "output": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "input": "abc",
+      "output": "900150983cd24fb0d6963f7d28e17f72"
+    },
+    {
+      "input": "The quick brown fox jumps over the lazy dog",
+      "output": "9e107d9d372bb6826bd81d3542a419d6"
+    }
+  ],
+  "sha256.hash": [
+    {
+      "input": "abc",
+      "output": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    },
+    {
+      "input": "",
+      "output": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "sha512.hash": [
+    {
+      "input": "abc",
+      "output": "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"
+    }
+  ],
+  "keyboard-shift.encipher": [
+    {
+      "input": "A",
+      "options": {
+        "steps": 1,
+        "direction": "right"
+      },
+      "output": "S"
+    }
+  ],
+  "semaphore.encode": [
+    {
+      "input": "HI",
+      "output": "2-3 2-4"
+    }
+  ],
+  "semaphore.decode": [
+    {
+      "input": "1-2 2-4 1-6",
+      "output": "AIE"
+    }
+  ],
+  "braille.decode": [
+    {
+      "input": "⠓⠑⠇⠇⠕",
+      "output": "hello"
+    }
+  ],
+  "hex-text.decode": [
+    {
+      "input": "48 65 6c 6c 6f",
+      "output": "Hello"
+    }
+  ],
+  "unicode-codepoints.encode": [
+    {
+      "input": "AB",
+      "options": {
+        "style": "u+"
+      },
+      "output": "U+0041 U+0042"
+    }
+  ],
+  "sha224.hash": [
+    {
+      "input": "abc",
+      "output": "23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7"
+    }
+  ],
+  "sha512-224.hash": [
+    {
+      "input": "abc",
+      "output": "4634270f707b6a54daae7530460842e20e37ed265ceee9a43e8924aa"
+    }
+  ],
+  "sha512-256.hash": [
+    {
+      "input": "abc",
+      "output": "53048e2681941ef99b2e29b76b4c7dabe4c2d0c634fc6d46e0e2f13107e7af23"
+    }
+  ],
+  "shake128.hash": [
+    {
+      "input": "abc",
+      "output": "5881092dd818bf5cf8a3ddb793fbcba74097d5c526a6d35f97b83351940f2cc8"
+    }
+  ],
+  "blake3.hash": [
+    {
+      "input": "abc",
+      "output": "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85"
+    }
+  ],
+  "ripemd160.hash": [
+    {
+      "input": "abc",
+      "output": "8eb208f7e05d987a9b044a8e98c6b087f15a0bfc"
+    }
+  ],
+  "blake2b-ts.hash": [
+    {
+      "input": "abc",
+      "output": "ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923"
+    }
+  ],
+  "blake2s-ts.hash": [
+    {
+      "input": "abc",
+      "output": "508c5e8c327c14e2e1a72ba34eeb452f37458b209ed63a294d999b4c86675982"
+    }
+  ],
+  "crc32.hash": [
+    {
+      "input": "123456789",
+      "output": "cbf43926"
+    }
+  ],
+  "crc16.hash": [
+    {
+      "input": "123456789",
+      "output": "bb3d"
+    }
+  ],
+  "crc8.hash": [
+    {
+      "input": "123456789",
+      "output": "f4"
+    }
+  ],
+  "adler32.hash": [
+    {
+      "input": "Wikipedia",
+      "output": "11e60398"
+    }
+  ],
+  "fnv1a.hash": [
+    {
+      "input": "a",
+      "output": "32-bit: e40c292c\n64-bit: af63dc4c8601ec8c",
+      "options": {
+        "bits": "32"
+      }
+    }
+  ],
+  "xxhash.hash": [
+    {
+      "input": "abc",
+      "output": "xxh32: 32d153ff\nxxh64: 44bc2cf5ad770999",
+      "options": {
+        "bits": "64"
+      }
+    }
+  ],
+  "hmac-sha256.hash": [
+    {
+      "input": "The quick brown fox jumps over the lazy dog",
+      "output": "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8",
+      "options": {
+        "key": "key"
+      }
+    }
+  ],
+  "pbkdf2-sha256.derive": [
+    {
+      "input": "password",
+      "output": "120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b",
+      "options": {
+        "salt": "salt",
+        "iterations": 1
+      }
+    }
+  ],
+  "hkdf-sha256.derive": [
+    {
+      "input": "key material",
+      "output": "346761a5aee2311e52d614ac6f6c53d1",
+      "options": {
+        "salt": "salt",
+        "info": "info",
+        "length": 16
+      }
+    }
+  ],
+  "enigma-m3.run": [
+    {
+      "input": "AAAAA",
+      "output": "BDZGO"
+    },
+    {
+      "input": "HELLO",
+      "output": "ILBDA"
+    }
+  ],
+  "solitaire-cipher.encipher": [
+    {
+      "input": "AAAAAAAAAA",
+      "output": "EXKYI ZSGEH"
+    }
+  ],
+  "solitaire-cipher.decipher": [
+    {
+      "input": "EXKYI ZSGEH",
+      "output": "AAAAA AAAAA"
+    }
+  ],
+  "punycode.encode": [
+    {
+      "input": "münchen",
+      "output": "mnchen-3ya"
+    },
+    {
+      "input": "münchen",
+      "output": "xn--mnchen-3ya",
+      "options": {
+        "dnsPrefix": true
+      }
+    }
+  ],
+  "punycode.decode": [
+    {
+      "input": "xn--mnchen-3ya",
+      "output": "münchen"
+    }
+  ],
+  "nato-phonetic.encode": [
+    {
+      "input": "KRYPTA 7",
+      "output": "Kilo Romeo Yankee Papa Tango Alfa / Seven"
+    }
+  ],
+  "american-morse.encode": [
+    {
+      "input": "SOS",
+      "output": "... / . . / ..."
+    }
+  ],
+  "american-morse.decode": [
+    {
+      "input": "... / . . / ...",
+      "output": "SOS"
+    }
+  ],
+  "dancing-men.encode": [
+    {
+      "input": "HELP",
+      "output": "⟦H⟧⟦E⟧⟦L⟧⟦P⟧"
+    }
+  ],
+  "pigpen.encode": [
+    {
+      "input": "HI",
+      "output": "⊓ ┌"
+    }
+  ],
+  "ebcdic.encode": [
+    {
+      "input": "HELLO 123",
+      "output": "c8 c5 d3 d3 d6 40 f1 f2 f3"
+    }
+  ],
+  "ebcdic.decode": [
+    {
+      "input": "c8 c5 d3 d3 d6 40 f1 f2 f3",
+      "output": "HELLO 123"
+    }
+  ],
+  "gray-code.encode": [
+    {
+      "input": "5 7 0",
+      "output": "111 100 0"
+    }
+  ],
+  "excess3.encode": [
+    {
+      "input": "459",
+      "output": "0111 1000 1100"
+    }
+  ],
+  "excess3.decode": [
+    {
+      "input": "0111 1000 1100",
+      "output": "459"
+    }
+  ],
+  "bcd.encode": [
+    {
+      "input": "459",
+      "output": "0100 0101 1001"
+    }
+  ],
+  "bcd.decode": [
+    {
+      "input": "0100 0101 1001",
+      "output": "459"
+    }
+  ],
+  "base36.encode": [
+    {
+      "input": "9876543210",
+      "output": "4jc8lii"
+    }
+  ],
+  "base62.encode": [
+    {
+      "input": "9876543210",
+      "output": "aMoY42"
+    }
+  ],
+  "uuencode.encode": [
+    {
+      "input": "Hi!",
+      "output": "#2&DA\n`\nend"
+    }
+  ],
+  "route-cipher.encipher": [
+    {
+      "input": "THEROUTEISTHEMESSAGE",
+      "output": "THEROSEEGASSTUTEIMEH",
+      "options": {
+        "width": 5
+      }
+    }
+  ],
+  "adfgx.encipher": [
+    {
+      "input": "ATTACKATDAWN",
+      "output": "FGXFG FGFFG FXDAA DDXAD FADF"
+    }
+  ],
+  "two-square.encipher": [
+    {
+      "input": "HELLOWORLD",
+      "output": "GXCGQ EMLDL"
+    }
+  ],
+  "myszkowski.encipher": [
+    {
+      "input": "CIVILIZATION",
+      "output": "IITOX XIXVN AXZXL XCI"
+    }
+  ],
+  "manchester-encoding.encode": [
+    {
+      "input": "a5",
+      "output": "10 01 10 01 01 10 01 10",
+      "options": {
+        "hexInput": true
+      }
+    }
+  ],
+  "nrz-encoding.encode": [
+    {
+      "input": "f0",
+      "output": "HIGH HIGH HIGH HIGH low low low low",
+      "options": {
+        "hexInput": true
+      }
+    }
+  ],
+  "protobuf-varint.encode": [
+    {
+      "input": "300",
+      "output": "ac 02\n\n300 → ac 02"
+    }
+  ]
+}
