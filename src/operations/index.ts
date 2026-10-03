@@ -15,6 +15,7 @@ import './compression';
 import './compressionExtra';
 import './analysis';
 import './cryptanalysisExtra';
+import './qr';
 import './pythonOps';
 
 export { defineOp, getOp, allOps, opCount, opsByCategory, categoryCount, searchOps, relatedOps, CATEGORIES } from './core/registry';

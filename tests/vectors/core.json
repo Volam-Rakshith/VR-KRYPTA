@@ -639,5 +639,11 @@
       "input": "300",
       "output": "ac 02\n\n300 → ac 02"
     }
+  ],
+  "qr-code.encode": [
+    {
+      "input": "HELLO",
+      "output": "                         \n  █▀▀▀▀▀█   ▄▀▄ █▀▀▀▀▀█  \n  █ ███ █ █▀▄ ▄ █ ███ █  \n  █ ▀▀▀ █ ██▄▄▀ █ ▀▀▀ █  \n  ▀▀▀▀▀▀▀ █▄▀ ▀ ▀▀▀▀▀▀▀  \n  ▀▄█▀██▀▄ ▄██▄▄█▀▀██    \n   ▄█▀█▀▀ ▀▄▄▄█▄█▀ ██▀   \n   ▀ ▀▀▀▀▀█ ▄ █  █ ▄▀ ▀  \n  █▀▀▀▀▀█ ▄▀█▀ ▀ ▄█▄██   \n  █ ███ █ ██ █▄█▄▄▀▄▀▀   \n  █ ▀▀▀ █ ▀█▄▄█▄█▀▄▄█    \n  ▀▀▀▀▀▀▀ ▀▀  ▀   ▀ ▀▀   \n                         \n\n— scan straight off the screen (zoom in / fullscreen helps). Payload: 5 bytes, ECC M."
+    }
   ]
 }

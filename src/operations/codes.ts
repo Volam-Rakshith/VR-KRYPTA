@@ -67,22 +67,18 @@ defineOp({
   output: 'encoded',
   reversible: true,
   engine: 'typescript',
-  options: [
-    { type: 'text', key: 'dot', label: 'Dot symbol', default: '.', help: 'Any single character, e.g. •' },
-    { type: 'text', key: 'dash', label: 'Dash symbol', default: '-', help: 'Any single character, e.g. −' }
-  ],
   actions: [
     {
       id: 'encode', label: 'Encode', kind: 'encode',
-      run: (v, o) => textValue(morseEncode(v.text, String(o.dot ?? '.').charAt(0) || '.', String(o.dash ?? '-').charAt(0) || '-'), 'encoded')
+      run: (v) => textValue(morseEncode(v.text, '.', '-'), 'encoded')
     },
     {
       id: 'decode', label: 'Decode', kind: 'decode',
-      run: (v, o) => textValue(morseDecode(v.text, String(o.dot ?? '.').charAt(0) || '.', String(o.dash ?? '-').charAt(0) || '-'))
+      run: (v) => textValue(morseDecode(v.text, '.', '-'))
     }
   ],
   examples: [{ label: 'Distress call', input: 'SOS HELP' }],
-  docs: 'Words are separated by 7 spaces (or "/"), letters by 3 spaces. Unsupported characters are reported, never silently dropped.'
+  docs: 'Letters are separated by single spaces, words by “ / ”. The decoder also accepts legacy 3/7-space spacing and the “/” word marker. Unsupported characters are reported, never silently dropped.'
 });
 
 /* ---------------------------------- A1Z26 --------------------------------- */

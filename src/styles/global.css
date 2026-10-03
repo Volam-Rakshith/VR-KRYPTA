@@ -714,3 +714,104 @@ body.has-cursorfx, body.has-cursorfx * { cursor: none !important; }
   }
   .bg-scanlines, .bg-grid { opacity: 0.35; }
 }
+
+/* ===================== polish pass: cursor, clicks, logo, interactions ===================== */
+
+/* Custom cursor: element sits at 0,0 and centers itself via translate(-50%,-50%)
+   composed AFTER the coordinate translate in JS — no fixed offset, pixel-accurate. */
+.cursor-dot { top: 0; left: 0; margin: 0; width: 7px; height: 7px; }
+.cursor-ring { top: 0; left: 0; margin: 0; }
+.cursor-ring.cursor-hot { margin: 0; }
+body.has-cursorfx a, body.has-cursorfx button, body.has-cursorfx [role="button"],
+body.has-cursorfx .op-card, body.has-cursorfx .pipeline-step { cursor: none !important; }
+
+/* Press feedback on the cursor itself */
+.cursor-ring.cursor-press { border-color: var(--cyan); background: rgba(34, 211, 238, 0.22); width: 26px; height: 26px; }
+.cursor-dot.cursor-press { width: 10px; height: 10px; box-shadow: 0 0 14px var(--cyan); }
+
+/* Click ripple — visible proof every click registered */
+.click-ripple {
+  position: fixed; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+  border-radius: 50%; border: 2px solid var(--cyan);
+  z-index: 9998; pointer-events: none;
+  animation: click-ripple 0.55s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+@keyframes click-ripple {
+  from { transform: scale(0.6); opacity: 0.95; box-shadow: 0 0 12px rgba(34, 211, 238, 0.6); }
+  to   { transform: scale(4.6); opacity: 0; box-shadow: none; }
+}
+
+/* Physical press state on every interactive control */
+.btn:active { transform: translateY(1px) scale(0.95); box-shadow: 0 2px 10px rgba(34, 211, 238, 0.18); }
+.nav__link:active, .op-card:active, .mini-toggle:active { transform: scale(0.97); }
+.op-card:active { transform: translateY(-1px) scale(0.99); }
+
+/* Shine sweep across op cards on hover (card is already position:relative) */
+.op-card { overflow: hidden; }
+.op-card::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 38%, rgba(34, 211, 238, 0.09) 50%, transparent 62%);
+  transform: translateX(-130%); transition: transform 0.65s ease;
+}
+.op-card:hover::before, .op-card:focus-visible::before { transform: translateX(130%); }
+
+/* Gradient underline that draws in on nav links */
+.nav__link { position: relative; }
+.nav__link::after {
+  content: ""; position: absolute; left: 10px; right: 10px; bottom: 1px; height: 2px; border-radius: 2px;
+  background: var(--grad); transform: scaleX(0); transform-origin: left; transition: transform 0.22s ease-out;
+}
+.nav__link:hover::after, .nav__link--on::after { transform: scaleX(1); }
+
+/* The real logo, everywhere it appears */
+.brandmark-img {
+  display: block; border-radius: 20%; object-fit: cover; flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.35), 0 0 16px rgba(59, 130, 246, 0.28);
+  transition: transform 0.22s cubic-bezier(0.2, 1, 0.3, 1), box-shadow 0.25s;
+}
+.brand:hover .brandmark-img, .welcome__card > .brandmark-img:hover {
+  transform: rotate(-4deg) scale(1.07);
+  box-shadow: 0 0 0 1.5px var(--cyan), 0 0 30px rgba(34, 211, 238, 0.6);
+}
+
+/* Hero: big glowing mark with float + pointer tilt (tilt via JS on .tilt-logo) */
+.hero__logo { display: flex; justify-content: center; margin: 2px 0 12px; }
+.hero__logo .brandmark-img {
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.45), 0 0 46px rgba(59, 130, 246, 0.5), 0 0 96px rgba(139, 92, 246, 0.35);
+}
+.tilt-logo { display: inline-block; transition: transform 0.18s ease-out; will-change: transform; }
+
+/* Boot + welcome logo breathing room */
+.boot__inner > .brandmark-img { margin: 0 auto 20px; box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.45), 0 0 44px rgba(59, 130, 246, 0.5); }
+.boot__inner { text-align: center; }
+.boot__skip { margin-top: 26px; }
+.welcome__card > .brandmark-img { margin: 0 auto 6px; }
+.about-hero > .brandmark-img { margin: 0 auto 10px; }
+
+/* Footer brand with inline mini logo */
+.app-footer__brand { display: inline-flex; align-items: center; gap: 7px; }
+.app-footer__brand .brandmark-img { box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.3); }
+
+/* Run-area primary button: idle glow pulse so the main CTA is discoverable */
+.run-row .btn--primary { animation: cta-pulse 2.6s ease-in-out infinite; }
+@keyframes cta-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(34, 211, 238, 0.0); }
+  50% { box-shadow: 0 0 22px rgba(34, 211, 238, 0.45); }
+}
+
+/* Input focus: full-field glow */
+.io-area:focus, .input:focus, .select:focus, textarea:focus {
+  outline: none; border-color: var(--cyan);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.4), 0 0 18px rgba(34, 211, 238, 0.16);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero__logo { animation: logo-float 5s ease-in-out infinite; }
+  @keyframes logo-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .welcome__card > .brandmark-img { animation: logo-float 5s ease-in-out infinite; }
+  .boot__inner > .brandmark-img { animation: logo-float 4s ease-in-out infinite; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .click-ripple { display: none; }
+  .run-row .btn--primary { animation: none; }
+}

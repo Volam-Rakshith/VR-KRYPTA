@@ -3,6 +3,7 @@ import { opCount, CATEGORIES, categoryCount, getOp } from '../operations';
 import { useAppData, usePrefs, navigate } from '../hooks/useApp';
 import { Icon } from '../ui/icons';
 import { CopyButton, Chip, EmptyState } from '../ui/components';
+import { TiltLogo } from '../ui/fx';
 
 function greeting(name: string | null): string {
   if (!name) return 'WELCOME BACK.';
@@ -22,6 +23,7 @@ export function Dashboard() {
     <div className="page page--dashboard">
       <section className="hero">
         <div className="hero__glitch" aria-hidden="true">VR KRYPTA</div>
+        <div className="hero__logo"><TiltLogo size={118} /></div>
         <h1 className="hero__title">VR KRYPTA</h1>
         <p className="hero__tagline">THE UNIVERSAL INFORMATION TRANSFORMATION TOOLKIT</p>
         <p className="hero__mantra">TRANSFORM&nbsp;&nbsp;•&nbsp;&nbsp;DECIPHER&nbsp;&nbsp;•&nbsp;&nbsp;ANALYZE</p>

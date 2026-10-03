@@ -210,6 +210,54 @@ describe('round-trips (phase-2 reversible operations)', () => {
   });
 });
 
+describe('secret message locker (AES-256-GCM via WebCrypto)', () => {
+  it('lock/unlock round-trips with the right passphrase', async () => {
+    const op = getOp('message-locker')!;
+    const lock = op.actions.find((a) => a.id === 'encipher')!;
+    const unlock = op.actions.find((a) => a.id === 'decipher')!;
+    const msg = 'lighthouse at midnight 🔦';
+    const locked = (await lock.run(buildInput(msg), { passphrase: 'correct horse battery staple' }, ctx)).text;
+    expect(locked).toMatch(/^VK1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/);
+    const unlocked = (await unlock.run(buildInput(locked), { passphrase: 'correct horse battery staple' }, ctx)).text;
+    expect(unlocked).toBe(msg);
+  });
+
+  it('refuses an empty/short passphrase', async () => {
+    const op = getOp('message-locker')!;
+    const lock = op.actions.find((a) => a.id === 'encipher')!;
+    await expect(Promise.resolve().then(() => lock.run(buildInput('x'), { passphrase: '123' }, ctx))).rejects.toThrow(/6\+/);
+  });
+
+  it('decrypt fails loudly with the wrong passphrase', async () => {
+    const op = getOp('message-locker')!;
+    const lock = op.actions.find((a) => a.id === 'encipher')!;
+    const unlock = op.actions.find((a) => a.id === 'decipher')!;
+    const locked = (await lock.run(buildInput('s3cret'), { passphrase: 'topsecret1' }, ctx)).text;
+    await expect(Promise.resolve().then(() => unlock.run(buildInput(locked), { passphrase: 'wrong-password' }, ctx))).rejects.toThrow(/wrong passphrase|corrupted/i);
+  });
+
+  it('decrypt requires a VK1 payload', async () => {
+    const op = getOp('message-locker')!;
+    const unlock = op.actions.find((a) => a.id === 'decipher')!;
+    await expect(Promise.resolve().then(() => unlock.run(buildInput('just some text'), { passphrase: 'whatever1' }, ctx))).rejects.toThrow(/VK1/);
+  });
+
+  it('QR generator produces a square grid with all three finder patterns', async () => {
+    const op = getOp('qr-code')!;
+    const enc = op.actions[0];
+    const out = (await enc.run(buildInput('HELLO'), defaultOptions(op), ctx)).text;
+    const art = out.split('\n\n—')[0];
+    const rows = art.split('\n');
+    // half-block render of a 21-module code + quiet zone: 13 rows, equal widths
+    expect(rows.length).toBe(13);
+    expect(new Set(rows.map((r) => [...r].length)).size).toBe(1);
+    // finder corners: dense top-left and top-right runs of dark half/full blocks
+    expect(rows[1]).toContain('█▀▀▀▀▀█');
+    expect(rows[1].slice(-1 - 9)).toContain('█▀▀▀▀▀█'.slice(-9));
+    expect(rows[rows.length - 2].slice(0, 10)).not.toMatch(/^\s+$/);
+  });
+});
+
 describe('validation behaviour', () => {
   // run() may be sync (throwing immediately) or async — wrap to normalize.
   const runSafe = (fn: () => unknown) => Promise.resolve().then(fn);

@@ -3,6 +3,7 @@
 // pointer-fine only, and never blocks interaction (pointer-events: none).
 import { useEffect, useRef, useState } from 'react';
 import { getPrefs } from '../services/store';
+import { BrandMark } from './icons';
 
 function reducedMotion(): boolean {
   return typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -23,27 +24,41 @@ export function CursorFX() {
     document.body.classList.add('has-cursorfx');
     let x = -100, y = -100, rx = -100, ry = -100;
     let raf = 0;
+    const center = (px: number, py: number) => `translate3d(${px}px, ${py}px, 0) translate(-50%, -50%)`;
     const onMove = (e: MouseEvent) => { x = e.clientX; y = e.clientY; };
     const tick = () => {
-      rx += (x - rx) * 0.16;
-      ry += (y - ry) * 0.16;
-      if (dot.current) dot.current.style.transform = `translate(${x}px, ${y}px)`;
-      if (ring.current) ring.current.style.transform = `translate(${rx}px, ${ry}px)`;
+      rx += (x - rx) * 0.2;
+      ry += (y - ry) * 0.2;
+      if (dot.current) dot.current.style.transform = center(x, y);
+      if (ring.current) ring.current.style.transform = center(rx, ry);
       raf = requestAnimationFrame(tick);
     };
     const onOver = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
-      const hot = !!t.closest('a, button, [role="button"], input, textarea, select, .op-card, .pipeline-step');
+      const hot = !!t.closest('a, button, [role="button"], input, textarea, select, .op-card, .pipeline-step, .brandmark-img');
       ring.current?.classList.toggle('cursor-hot', hot);
       dot.current?.classList.toggle('cursor-hot', hot);
     };
+    const onDown = (e: MouseEvent) => {
+      ring.current?.classList.add('cursor-press');
+      dot.current?.classList.add('cursor-press');
+      spawnRipple(e.clientX, e.clientY);
+    };
+    const onUp = () => {
+      ring.current?.classList.remove('cursor-press');
+      dot.current?.classList.remove('cursor-press');
+    };
     window.addEventListener('mousemove', onMove, { passive: true });
     window.addEventListener('mouseover', onOver, { passive: true });
+    window.addEventListener('mousedown', onDown, { passive: true });
+    window.addEventListener('mouseup', onUp, { passive: true });
     raf = requestAnimationFrame(tick);
     return () => {
       document.body.classList.remove('has-cursorfx');
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseover', onOver);
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('mouseup', onUp);
       cancelAnimationFrame(raf);
     };
   }, []);
@@ -54,6 +69,39 @@ export function CursorFX() {
       <div ref={ring} className="cursor-ring" aria-hidden="true" />
       <div ref={dot} className="cursor-dot" aria-hidden="true" />
     </>
+  );
+}
+
+/** Expanding ring at every click — direct confirmation that the click registered. */
+function spawnRipple(x: number, y: number) {
+  const el = document.createElement('div');
+  el.className = 'click-ripple';
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
+}
+
+/** Hero logo with a gentle pointer-parallax tilt. */
+export function TiltLogo({ size = 120 }: { size?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const enabled = finePointer() && !reducedMotion();
+  return (
+    <div
+      ref={ref}
+      className="tilt-logo"
+      style={{ perspective: '600px' }}
+      onMouseMove={(e) => {
+        if (!enabled || !ref.current) return;
+        const r = ref.current.getBoundingClientRect();
+        const dx = (e.clientX - r.left - r.width / 2) / (r.width / 2);
+        const dy = (e.clientY - r.top - r.height / 2) / (r.height / 2);
+        ref.current.style.transform = `rotateY(${dx * 10}deg) rotateX(${-dy * 10}deg)`;
+      }}
+      onMouseLeave={() => { if (ref.current) ref.current.style.transform = 'rotateY(0) rotateX(0)'; }}
+    >
+      <BrandMark size={size} />
+    </div>
   );
 }
 
@@ -165,6 +213,7 @@ export function BootScreen({ onDone }: { onDone: () => void }) {
   return (
     <div className={`boot ${fade ? 'boot--fade' : ''}`} onClick={onDone} role="presentation">
       <div className="boot__inner">
+        <BrandMark size={72} />
         <div className="boot__logo">VR KRYPTA</div>
         <div className="boot__sub">VR DEVELOPMENTS</div>
         <div className="boot__lines">

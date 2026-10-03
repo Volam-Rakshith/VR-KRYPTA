@@ -72,19 +72,16 @@ export function Icon({ name, size = 18, className, filled }: IconProps) {
 }
 
 export function BrandMark({ size = 30 }: { size?: number }) {
+  // The official logo asset. Brand colors in CSS stay token-based, but the
+  // mark itself is the real PNG everywhere the brand appears.
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
-      <defs>
-        <linearGradient id="bm-g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#22d3ee" />
-          <stop offset=".55" stopColor="#3b82f6" />
-          <stop offset="1" stopColor="#8b5cf6" />
-        </linearGradient>
-      </defs>
-      <rect x="1.5" y="1.5" width="61" height="61" rx="12.5" fill="#05060a" stroke="url(#bm-g)" strokeOpacity=".55" strokeWidth="1.5" />
-      <path d="M14 18 L24 46 L32 24" fill="none" stroke="url(#bm-g)" strokeWidth="4.6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M38 18 L38 46 M38 33 L48 18 M41 30 L50 46" fill="none" stroke="url(#bm-g)" strokeWidth="4.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="32" cy="12" r="1.8" fill="#22d3ee" />
-    </svg>
+    <img
+      src={`${import.meta.env.BASE_URL}icons/logo.png`}
+      width={size}
+      height={size}
+      alt="VR KRYPTA logo"
+      className="brandmark-img"
+      draggable={false}
+    />
   );
 }

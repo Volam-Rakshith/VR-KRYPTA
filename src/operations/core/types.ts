@@ -108,7 +108,7 @@ export interface CategoryInfo {
 
 export const CATEGORIES: CategoryInfo[] = [
   { id: 'codes', name: 'Codes & Representations', blurb: 'Morse, Braille, semaphore, tap code, numeric representations and telegraph-era systems.', icon: 'signal' },
-  { id: 'ciphers', name: 'Classical Ciphers', blurb: 'Historical substitution, polyalphabetic and transposition ciphers — for study and puzzles, not modern security.', icon: 'key' },
+  { id: 'ciphers', name: 'Classical Ciphers', blurb: 'Historical substitution, polyalphabetic and transposition ciphers for study and puzzles — plus the AES Message Locker, the one genuinely modern cipher for real secrets.', icon: 'key' },
   { id: 'encodings', name: 'Encodings', blurb: 'Base64 and friends, percent encoding, HTML entities, quoted-printable and byte-to-text formats.', icon: 'brackets' },
   { id: 'hashing', name: 'Hashing', blurb: 'One-way digests. Hashing is not encryption — a digest can be verified, never "decoded".', icon: 'fingerprint' },
   { id: 'compression', name: 'Compression', blurb: 'gzip, zlib and DEFLATE streams, produced and consumed locally in your browser.', icon: 'shrink' },
