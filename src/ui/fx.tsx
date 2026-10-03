@@ -174,6 +174,16 @@ export function BackgroundFX() {
 
   return (
     <>
+      <div className="bg-aurora bg-aurora--a" aria-hidden="true" />
+      <div className="bg-aurora bg-aurora--b" aria-hidden="true" />
+      <div className="bg-watermark" aria-hidden="true">
+        <span>
+          {'VR KRYPTA ✦ VR DEVELOPMENTS ✦ TRANSFORM ✦ DECIPHER ✦ ANALYZE ✦ '.repeat(14)}
+        </span>
+        <span aria-hidden="true">
+          {'VR KRYPTA ✦ VR DEVELOPMENTS ✦ TRANSFORM ✦ DECIPHER ✦ ANALYZE ✦ '.repeat(14)}
+        </span>
+      </div>
       <div className="bg-grid" aria-hidden="true" />
       <canvas ref={canvas} className="bg-canvas" aria-hidden="true" />
       <div className="bg-scanlines" aria-hidden="true" />

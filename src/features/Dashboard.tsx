@@ -25,6 +25,7 @@ export function Dashboard() {
         <div className="hero__glitch" aria-hidden="true">VR KRYPTA</div>
         <div className="hero__logo"><TiltLogo size={118} /></div>
         <h1 className="hero__title">VR KRYPTA</h1>
+        <p className="hero__studio">A VR DEVELOPMENTS PROJECT</p>
         <p className="hero__tagline">THE UNIVERSAL INFORMATION TRANSFORMATION TOOLKIT</p>
         <p className="hero__mantra">TRANSFORM&nbsp;&nbsp;•&nbsp;&nbsp;DECIPHER&nbsp;&nbsp;•&nbsp;&nbsp;ANALYZE</p>
         <div className="hero__greet">

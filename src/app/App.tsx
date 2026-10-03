@@ -66,7 +66,7 @@ function Footer() {
   return (
     <footer className="app-footer">
       <div className="app-footer__row">
-        <span className="app-footer__brand"><BrandMark size={16} />VR KRYPTA</span>
+        <span className="app-footer__brand"><BrandMark size={16} />VR KRYPTA <span className="app-footer__by2">© 2026 VR DEVELOPMENTS</span></span>
         <span className="app-footer__tag">The Universal Information Transformation Toolkit</span>
       </div>
       <div className="app-footer__row">

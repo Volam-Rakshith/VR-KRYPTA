@@ -293,9 +293,13 @@ function ClipLinks() {
           onMouseLeave={(e) => wipe(e, 'out')}
           onClick={(e) => { if (!l.live) { e.preventDefault(); toast(`${l.label} handle drops soon — link not wired yet`, 'info'); } }}
         >
-          <span className="cliplink__icon">{BRAND_SVGS[l.id]}<span className="cliplink__label">{l.label}</span></span>
+          <span className="cliplink__icon">
+            {BRAND_SVGS[l.id]}
+            <span className="cliplink__label">{l.label}</span>
+            <span className="cliplink__handle">{l.live ? l.handle : 'coming soon'}</span>
+          </span>
           <span className="cliplink__face" aria-hidden="true" style={{ clipPath: 'polygon(0 0, 100% 0, 0 0, 0% 100%)' }}>
-            <span className="cliplink__icon cliplink__icon--face">{BRAND_SVGS[l.id]}<span className="cliplink__label">{l.live ? l.handle : 'coming soon'}</span></span>
+            <span className="cliplink__icon cliplink__icon--face">{BRAND_SVGS[l.id]}<span className="cliplink__label">{l.label}</span></span>
           </span>
         </a>
       ))}
