@@ -1,9 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
-// Root-path hosting (user/organization GitHub Pages site).
+// Project-repo GitHub Pages hosting: https://volam-rakshith.github.io/VR-KRYPTA/
 export default defineConfig({
-  base: '/',
+  base: '/VR-KRYPTA/',
   plugins: [react()],
   server: {
     // Dev-server host allowlist must accept the sandboxed preview host.

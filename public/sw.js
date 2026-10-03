@@ -1,9 +1,12 @@
 /* VR KRYPTA service worker — offline app shell + runtime caching.
    The app shell is precached on install; the Pyodide CDN runtime is cached
    on first use, so Python-backed operations work offline afterwards. */
-const SHELL = 'vrk-shell-v1';
-const RUNTIME = 'vrk-runtime-v1';
-const SHELL_ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icons/favicon.svg'];
+const SHELL = 'vrk-shell-v2';
+const RUNTIME = 'vrk-runtime-v2';
+// Deployed under a project subpath (/VR-KRYPTA/) — resolve everything relative
+// to the SW's own directory so it also works from a root deploy.
+const ROOT = new URL('.', self.location.href).pathname;
+const SHELL_ASSETS = [ROOT, ROOT + 'index.html', ROOT + 'manifest.webmanifest', ROOT + 'icons/favicon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -56,12 +59,12 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((res) => {
-        if (res.ok && url.pathname === '/') {
+        if (res.ok && url.pathname === ROOT) {
           const clone = res.clone();
-          caches.open(SHELL).then((c) => c.put('/', clone));
+          caches.open(SHELL).then((c) => c.put(ROOT, clone));
         }
         return res;
       })
-      .catch(() => caches.match(event.request).then((hit) => hit || caches.match('/')))
+      .catch(() => caches.match(event.request).then((hit) => hit || caches.match(ROOT)))
   );
 });
