@@ -11,6 +11,7 @@ import { Icon } from '../ui/icons';
 import { Chip, CopyButton, EmptyState, downloadText, useToast } from '../ui/components';
 import { OptionField } from '../ui/OptionsField';
 import { SpringModal } from '../ui/modal';
+import { HeartFav } from '../ui/heart';
 import { ScrambleButton } from '../ui/fx';
 import { capturedFragment, capturedInvite, SHARE_TEXT_LIMIT } from '../services/share';
 
@@ -30,6 +31,7 @@ export function Workspace({ opId }: { opId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState<string | null>(null);
   const [docsOpen, setDocsOpen] = useState(false);
+  const [optsOpen, setOptsOpen] = useState(false);
   const [pyState, setPyState] = useState(pythonState());
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -41,14 +43,29 @@ export function Workspace({ opId }: { opId: string }) {
     setOutput(null);
     setError(null);
     setInputHex(false);
+    setOptsOpen(false);
+    setDocsOpen(false);
     // Deep-link prefill: "Transform it here" from a shared result drops the
     // shared code straight into the input box of the right operation.
     const preKey = `vrk:prefill:${opId}`;
     const pre = sessionStorage.getItem(preKey);
     if (pre) {
       sessionStorage.removeItem(preKey);
-      setInput(pre);
-      toast('Shared code loaded — hit the transform action', 'ok');
+      // Two prefill shapes: plain text (share links) or JSON {text, options} (history replay)
+      if (pre.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(pre) as { text?: string; options?: Record<string, unknown> };
+          setInput(parsed.text ?? '');
+          if (parsed.options) setOptions((cur) => ({ ...cur, ...parsed.options }));
+          toast('History replay — input and settings restored', 'ok');
+        } catch {
+          setInput(pre);
+          toast('Input loaded from history', 'ok');
+        }
+      } else {
+        setInput(pre);
+        toast('Shared code loaded — hit the transform action', 'ok');
+      }
     } else {
       setInput('');
     }
@@ -100,8 +117,12 @@ export function Workspace({ opId }: { opId: string }) {
         opId: op.id,
         opName: op.name,
         actionLabel: action.label,
+        actionId,
         inputPreview: input.length > 200 ? input.slice(0, 200) + '…' : input,
-        outputPreview: out.text.length > 200 ? out.text.slice(0, 200) + '…' : out.text
+        outputPreview: out.text.length > 200 ? out.text.slice(0, 200) + '…' : out.text,
+        input: input.slice(0, 1500),
+        output: out.text.slice(0, 1500),
+        options: JSON.parse(JSON.stringify(options)) as Record<string, unknown>
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -162,17 +183,14 @@ export function Workspace({ opId }: { opId: string }) {
             <span className="io-badge">{op.input} → {op.output}</span>
           </div>
         </div>
-        <button
-          type="button"
-          className={`star-btn ${fav ? 'star-btn--on' : ''}`}
-          aria-label="Toggle favorite"
-          onClick={async () => {
+        <HeartFav
+          fav={fav}
+          size={26}
+          onToggle={async () => {
             const on = await toggleFavorite(op);
-            toast(on ? '★ Added to favorites' : 'Removed from favorites', 'ok');
+            toast(on ? 'Added to favorites' : 'Removed from favorites', 'ok');
           }}
-        >
-          <Icon name="star" size={20} filled={fav} />
-        </button>
+        />
       </header>
 
       {op.warnings && op.warnings.length > 0 && (
@@ -260,15 +278,30 @@ export function Workspace({ opId }: { opId: string }) {
           </div>
 
           {op.options && op.options.length > 0 && (
-            <div className="opt-grid">
-              {op.options.map((f) => (
-                <OptionField
-                  key={f.key}
-                  def={f}
-                  value={options[f.key]}
-                  onChange={(v) => setOptions((o) => ({ ...o, [f.key]: v }))}
-                />
-              ))}
+            <div className="opts-wrap">
+              <button
+                type="button"
+                className={`opts-toggle ${optsOpen ? 'opts-toggle--open' : ''}`}
+                onClick={() => setOptsOpen(!optsOpen)}
+                aria-expanded={optsOpen}
+              >
+                <Icon name="gear" size={13} />
+                <span>ADVANCED SETTINGS</span>
+                <span className="opts-toggle__count">{op.options.length}</span>
+                <Icon name={optsOpen ? 'chevronUp' : 'chevron'} size={13} />
+              </button>
+              {optsOpen && (
+                <div className="opt-grid opt-grid--reveal">
+                  {op.options.map((f) => (
+                    <OptionField
+                      key={f.key}
+                      def={f}
+                      value={options[f.key]}
+                      onChange={(v) => setOptions((o) => ({ ...o, [f.key]: v }))}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

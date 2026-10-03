@@ -87,7 +87,10 @@ export function Dashboard() {
         ) : (
           <div className="history-list">
             {data.history.slice(0, 6).map((h, i) => (
-              <button key={`${h.ts}-${i}`} type="button" className="history-item" onClick={() => navigate(`/op/${h.opId}`)}>
+              <button key={`${h.ts}-${i}`} type="button" className="history-item" onClick={() => {
+                sessionStorage.setItem(`vrk:prefill:${h.opId}`, JSON.stringify({ text: h.input ?? h.inputPreview.replace(/…$/, ''), options: h.options }));
+                navigate(`/op/${h.opId}`);
+              }}>
                 <div className="history-item__main">
                   <span className="history-item__op">{h.opName}</span>
                   <Chip tone="cyan">{h.actionLabel}</Chip>

@@ -30,6 +30,10 @@ let prefs: Prefs = { ...defaultPrefs };
 const listeners = new Set<() => void>();
 
 function notify() {
+  // Re-identity the snapshot so useSyncExternalStore consumers re-render —
+  // mutating arrays in place left React comparing the same reference.
+  data = { ...data };
+  prefs = { ...prefs };
   for (const fn of listeners) fn();
 }
 
@@ -72,6 +76,11 @@ export interface HistoryEntry {
   actionLabel: string;
   inputPreview: string;
   outputPreview: string;
+  /** Full payloads for one-click replay (capped, optional for old entries). */
+  actionId?: string;
+  input?: string;
+  output?: string;
+  options?: Record<string, unknown>;
 }
 
 export interface PipelineStep {

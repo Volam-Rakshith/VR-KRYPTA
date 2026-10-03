@@ -1096,3 +1096,67 @@ select.select option, select.select optgroup { background: #0d101c; color: var(-
   color: #a9b4d0; background: rgba(6, 9, 18, 0.85); border: 1px solid rgba(34, 211, 238, 0.35);
   pointer-events: none;
 }
+
+/* ======================= COLLAPSED ADVANCED OPTIONS ======================= */
+
+.opts-wrap { margin: 10px 0 2px; }
+.opts-toggle {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 9px 14px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.22em;
+  color: var(--muted); background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--line); border-radius: 10px; cursor: pointer;
+  transition: all 0.18s;
+}
+.opts-toggle:hover { color: var(--cyan); border-color: rgba(34, 211, 238, 0.45); background: rgba(34, 211, 238, 0.04); }
+.opts-toggle--open { color: var(--cyan); border-style: solid; border-color: rgba(34, 211, 238, 0.4); }
+.opts-toggle__count {
+  margin-left: auto; padding: 1px 8px; border-radius: 999px; font-size: 10px;
+  background: rgba(139, 92, 246, 0.18); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4);
+}
+.opt-grid--reveal { margin-top: 12px; }
+@media (prefers-reduced-motion: no-preference) {
+  .opt-grid--reveal { animation: opts-drop 0.2s cubic-bezier(0.2, 1, 0.4, 1); }
+  @keyframes opts-drop { from { opacity: 0; transform: translateY(-6px); } }
+}
+
+/* ========================== HEART FAVORITE BUTTON ========================== */
+
+.heart-fav {
+  display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: transparent; border: none; cursor: pointer; flex: none;
+  transition: background 0.18s, transform 0.12s;
+}
+.heart-fav:hover { background: rgba(244, 114, 182, 0.1); }
+.heart-fav:active { transform: scale(0.9); }
+.heart-fav svg { overflow: visible; }
+.heart-fav__initial {
+  stroke: var(--muted); stroke-width: 1.5; fill: transparent;
+  transition: stroke 0.15s;
+}
+.heart-fav__stroke {
+  stroke-dasharray: 100; stroke-dashoffset: 100; stroke-linecap: round; stroke-width: 2.5;
+  stroke: var(--cyan); fill: transparent;
+}
+.heart-fav:hover .heart-fav__initial { stroke: #f472b6; }
+
+.heart-fav--on .heart-fav__initial { display: none; }
+.heart-fav--on .heart-fav__stroke {
+  animation: heart-stroke-draw 0.5s cubic-bezier(0.1, 0.7, 0.8, 0.3) forwards;
+}
+@keyframes heart-stroke-draw {
+  from { stroke: #22d3ee; fill: transparent; stroke-dashoffset: 100; }
+  50% { stroke: #8b5cf6; }
+  85% { fill: transparent; }
+  to { stroke-dashoffset: 0; stroke: #f472b6; fill: #f472b6; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .heart-fav--on svg { animation: heart-pop 0.5s cubic-bezier(0.64, -1.5, 0.64, 1.5); transform-origin: 50% 50%; }
+  @keyframes heart-pop {
+    from { transform: scale(1); }
+    78% { transform: scale(1.28); }
+    to { transform: scale(1); }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .heart-fav--on .heart-fav__stroke { animation: none; stroke-dashoffset: 0; stroke: #f472b6; fill: #f472b6; }
+}

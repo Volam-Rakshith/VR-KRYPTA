@@ -5,6 +5,7 @@ import type { CategoryId, OperationDefinition } from '../operations/core/types';
 import { navigate, useAppData } from '../hooks/useApp';
 import { toggleFavorite } from '../services/store';
 import { Icon } from '../ui/icons';
+import { HeartFav } from '../ui/heart';
 import { Select } from '../ui/select';
 import { Chip, EmptyState, useToast } from '../ui/components';
 
@@ -26,18 +27,14 @@ export function OpCard({ op, focused, onFocus }: { op: OperationDefinition; focu
       <div className="op-card__top">
         <span className="op-card__icon"><Icon name={cat?.icon ?? 'bolt'} size={17} /></span>
         <h3 className="op-card__name">{op.name}</h3>
-        <button
-          type="button"
-          className={`op-card__fav ${fav ? 'op-card__fav--on' : ''}`}
-          aria-label={fav ? 'Remove from favorites' : 'Add to favorites'}
-          onClick={async (e) => {
-            e.stopPropagation();
+        <HeartFav
+          fav={fav}
+          size={20}
+          onToggle={async () => {
             const on = await toggleFavorite(op);
-            toast(on ? `★ ${op.name} added to favorites` : `Removed ${op.name} from favorites`, 'ok');
+            toast(on ? `${op.name} added to favorites` : `Removed ${op.name} from favorites`, 'ok');
           }}
-        >
-          <Icon name="star" size={15} filled={fav} />
-        </button>
+        />
       </div>
       <p className="op-card__desc">{op.description}</p>
       <div className="op-card__meta">
