@@ -58,16 +58,15 @@ Quick pass = ⭐ items only · Full pass = everything
 
 Setup: **Phone A on home Wi-Fi (host). Phone B on mobile data, Wi-Fi OFF (guest).**
 
-- [ ] ⭐ A: GENERATE CONNECT TICKET → 📋 COPY TICKET → WhatsApp to B
-- [ ] ⭐ B: paste ticket → CONNECT WITH TICKET → sees **answer code card** on the CONNECTING screen (textarea + 📋 COPY ANSWER CODE button — NOT hidden!)
-- [ ] B: copy answer → WhatsApp to A → A pastes → ✅ COMPLETE CONNECTION
-- [ ] ⭐ A shows "⏳ answer accepted — their phone is connecting"; B auto-lands in lobby within ~10s
-- [ ] Both phones stayed on-screen during handshake (background tabs freeze the link — expected)
-- [ ] Stale ticket (waited 10+ min before answer) → cancel → fresh ticket works
-- [ ] ⭐ 4G ↔ 4G (both on mobile data, no Wi-Fi) also connects (TURN relay path)
-- [ ] Cancel button on connecting screen returns to menu cleanly
-- [ ] After join: full game played over WebRTC — roles private, votes relay, results sync
-- [ ] Guest disconnect (airplane mode 30s) → host roster drops them; game continues
+- [ ] ⭐ A: create room → says the 5-letter code. THAT'S ALL.
+- [ ] ⭐ B: JOIN → type name + code → 🚀 JOIN ROOM → spinner → "✅ HOST FOUND!" → lobby within ~5–15s (first connect can take up to 30s on slow networks)
+- [ ] ⭐ 4G ↔ 4G, 5G ↔ Wi-Fi, laptop ↔ phone, different cities — SAME flow, no tickets, no answer codes
+- [ ] B keeps screen on during first connect (background tabs may freeze networking)
+- [ ] At 12s with no host: hint checklist shows; CANCEL → retry works
+- [ ] Host roster shows each guest live; guest count updates the SETTINGS button
+- [ ] After join: full game played — roles private per device, votes relay, results sync
+- [ ] Guest airplane-mode 30s → host roster drops them; game continues
+- [ ] Guest reopens + rejoins same code → lands back in (dupes prevented)
 
 ## F. 🎵 Music & Sound (NEW engine)
 

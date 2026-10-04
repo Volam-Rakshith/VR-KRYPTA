@@ -37,6 +37,22 @@ export interface NetTransport {
 
 const APP_ID = 'voi-imposter-krypta';
 
+// Probed live (this week): every relay here ACCEPTS trystero's ephemeral events.
+// Defaults shipped with trystero are mostly dead/blocking — don't trust them.
+const SIGNAL_RELAYS = [
+  'wss://relay.damus.io',
+  'wss://bucket.coracle.social',
+  'wss://nostr-relay.corb.net',
+  'wss://nostr.islandarea.net',
+  'wss://nostr.mom',
+  'wss://nos.lol',
+  'wss://basspistol.org',
+  'wss://nostr-01.yakihonne.com',
+  'wss://nostr.sathoarder.com',
+  'wss://nostr.data.haus',
+  'wss://nostr-01.uid.ovh'
+];
+
 // Symmetric-NAT-proof: free public TURN so 4G↔4G and 5G city-to-city work.
 const NET_RTC: RTCConfiguration = {
   iceServers: [
@@ -70,7 +86,8 @@ export function joinNetRoom(code: string): NetTransport {
     {
       appId: APP_ID,
       password: 'voi-room:' + roomCode, // encrypts all traffic with the code
-      rtcConfig: NET_RTC
+      rtcConfig: NET_RTC,
+      relayConfig: { urls: SIGNAL_RELAYS, redundancy: 6 }
     },
     roomCode
   );

@@ -72,7 +72,12 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
   const hostId = useMemo(() => 'host-' + Math.random().toString(36).slice(2, 7), []);
   const allPlayers: Player[] = useMemo(() => [{ id: hostId, name: hostName || 'Host' }, ...guests.map((g) => ({ id: g.playerId, name: g.name }))], [hostId, hostName, guests]);
 
-  // host >> welcomes guests from anywhere (any device / network / location)
+  // host >> welcomes guests from anywhere (any device / network / location).
+  // CRITICAL: this effect mounts ONCE per room. Relay discovery is slow; tearing
+  // the room down on every keystroke (old code re-ran on allPlayers changes)
+  // made the host impossible to find. All mutable state reads go through refs.
+  const allPlayersRef = useRef(allPlayers);
+  allPlayersRef.current = allPlayers;
   useEffect(() => {
     const t = joinNetRoom(room);
     net.current = t;
@@ -81,7 +86,8 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
       if (msg.t === 'join') {
         const name = msg.name.trim().slice(0, 18);
         if (!name) return;
-        if (allPlayers.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+        const players = allPlayersRef.current;
+        if (players.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
           net.current?.send({ t: 'joined', ok: false, reason: 'Name taken — pick a different one.', roster: [] }, msg.playerId);
           return;
         }
@@ -91,7 +97,7 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
           send: (m) => net.current?.send(m, msg.playerId)
         };
         setGuests((gs) => (gs.some((g) => g.playerId === msg.playerId) ? gs : [...gs, guest]));
-        guest.send({ t: 'joined', ok: true, roster: allPlayers.map((p) => ({ id: p.id, name: p.name })) });
+        guest.send({ t: 'joined', ok: true, roster: allPlayersRef.current.map((p) => ({ id: p.id, name: p.name })) });
       }
       if (msg.t === 'vote') {
         setVotes((v) => (v[msg.voterId] ? v : { ...v, [msg.voterId]: msg.targetId }));
@@ -113,7 +119,7 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
     };
     return () => { net.current = null; t.close(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room, allPlayers.map((p) => p.name).join('|')]);
+  }, [room]);
 
   // a guest vanishing (closed tab / lost signal) must never soft-lock the game
   function dropGuest(playerId: string) {
@@ -549,7 +555,12 @@ export function RoomJoin({ onBack }: { onBack: () => void }) {
     if (state !== 'connecting') return;
     setWaitSec(0);
     const iv = window.setInterval(() => setWaitSec((n) => n + 1), 1000);
-    return () => window.clearInterval(iv);
+    // public relays can be slow to propagate — politely re-announce until we're in
+    const reAnnounce = window.setInterval(() => {
+      transport.current?.send({ t: 'join', name: name.trim(), playerId }, hostPeer.current);
+    }, 5000);
+    return () => { window.clearInterval(iv); window.clearInterval(reAnnounce); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
   const cancelConnect = () => {
