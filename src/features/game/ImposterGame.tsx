@@ -108,6 +108,11 @@ export function ImposterGame() {
     if (mode === null) music('lobby');
   }, [screen, mode, mood]);
 
+  // Music is a GAME-ONLY resident: leaving the game screen (nav, unmount) kills it.
+  useEffect(() => {
+    return () => stopMusic();
+  }, []);
+
   // ---------------- session restore on mount ----------------
   useEffect(() => {
     const ses = getSession();

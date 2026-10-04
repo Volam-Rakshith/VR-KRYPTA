@@ -80,16 +80,31 @@ function b64uDecode(s: string): string {
 }
 
 const RTC_CONFIG: RTCConfiguration = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }]
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    // free public TURN relay — REQUIRED for cross-network links when both
+    // phones sit behind symmetric NAT (typical 4G↔4G). No account needed.
+    {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turns:openrelay.metered.ca:443'
+      ],
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    }
+  ]
 };
 
 async function waitIce(pc: RTCPeerConnection): Promise<RTCSessionDescriptionInit> {
   if (pc.iceGatheringState === 'complete') return pc.localDescription!.toJSON();
   return new Promise((resolve, reject) => {
     const timeout = window.setTimeout(() => {
-      // mobile networks stall ICE forever — ship what we have (host candidates are usually enough on LAN)
+      // TURN allocation + slow mobile ICE can take seconds — ship whatever
+      // candidates we have rather than failing outright.
       pc.localDescription ? resolve(pc.localDescription.toJSON()) : reject(new Error('ICE gathering timed out'));
-    }, 3200);
+    }, 8000);
     pc.addEventListener('icegatheringstatechange', () => {
       if (pc.iceGatheringState === 'complete') {
         window.clearTimeout(timeout);
@@ -158,10 +173,10 @@ export function newHostPeer(): RTCPeerConnection {
 export function rtcErrorMessage(err: unknown): string {
   const m = err instanceof Error ? err.message : String(err);
   if (/ICE gathering timed out/i.test(m)) {
-    return 'Network check timed out — try a shared Wi-Fi first, then paste the latest codes quickly.';
+    return 'Network negotiation timed out — ask the host for a FRESH ticket and paste both codes quickly.';
   }
   if (/InvalidStateError|description/i.test(m)) {
     return 'That code looks wrong or out-of-date — generate a fresh ticket on the host phone and try again.';
   }
-  return 'Connection failed — phones usually connect easiest on the same Wi-Fi. ' + m;
+  return 'Connection failed — tickets work across ANY networks (4G, different Wi-Fi). Get a fresh ticket and retry. ' + m;
 }

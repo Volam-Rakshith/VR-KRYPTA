@@ -68,6 +68,7 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
   const [stats, setStats] = useState(() => emptyStats([]));
   const [ticket, setTicket] = useState('');
   const [answerIn, setAnswerIn] = useState('');
+  const [rtcWaiting, setRtcWaiting] = useState(false);
   const [rtcBusy, setRtcBusy] = useState(false);
   const [connectMode, setConnectMode] = useState<'code' | 'rtc'>('code');
   const [timerLeft, setTimerLeft] = useState<number | null>(null);
@@ -123,6 +124,7 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
 
   const beginConnectGuest = async () => {
     setRtcBusy(true);
+    setRtcWaiting(false);
     try {
       const pc = newHostPeer();
       const key = 'rtc-' + Math.random().toString(36).slice(2, 7);
@@ -132,8 +134,11 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
       // when the data channel opens, wire a guest handler
       const onDc = (dc: RTCDataChannel) => {
         const t = wrapDataChannel(dc, pc);
+        let joinedId: string | null = null;
         t.onMessage = (msg) => {
           if (msg.t === 'join') {
+            joinedId = msg.playerId;
+            setRtcWaiting(false);
             const name = msg.name.trim().slice(0, 18);
             const guest: ConnectedGuest = { playerId: msg.playerId, name, send: (m) => t.send(m, null) };
             setGuests((gs) => (gs.some((g) => g.playerId === msg.playerId) ? gs : [...gs, guest]));
@@ -145,7 +150,7 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
             finishSteal(ok);
           }
         };
-        t.onPeer = (ev) => { if (ev === 'leave') setGuests((gs) => gs.filter((g) => g.playerId !== 'rtc')); };
+        t.onPeer = (ev) => { if (ev === 'leave' && joinedId) setGuests((gs) => gs.filter((g) => g.playerId !== joinedId)); };
       };
       // early data channel arrives via the pc's event because we createDataChannel first
       pc.ondatachannel = (e) => onDc(e.channel);
@@ -169,6 +174,7 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
       await hostAcceptAnswer(rec.pc, answerIn);
       setTicket('');
       setAnswerIn('');
+      setRtcWaiting(true);
     } catch (e) {
       alert(rtcErrorMessage(e));
     } finally {
@@ -366,16 +372,18 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
                 )}
                 {ticket && (
                   <>
-                    <p className="voi-label">SEND THIS TICKET (any messenger):</p>
+                    <p className="voi-label">1️⃣ SEND THIS TICKET TO YOUR FRIEND (WhatsApp, anything):</p>
                     <textarea readOnly className="voi-input" rows={3} value={ticket} />
-                    <p className="voi-label">THEN PASTE THEIR ANSWER CODE HERE:</p>
+                    <button type="button" className="voi-btn voi-btn--teal" onClick={() => void voiCopy(ticket)}>📋 COPY TICKET</button>
+                    <p className="voi-label">3️⃣ THEY paste it → tap CONNECT WITH TICKET → THEIR phone shows an ANSWER CODE. They send it back. Paste it here:</p>
                     <textarea className="voi-input" rows={3} value={answerIn} onChange={(e) => setAnswerIn(e.target.value)} placeholder="paste answer…" />
                     <button type="button" className="voi-btn voi-btn--red" disabled={!answerIn.trim() || rtcBusy} onClick={() => void finishAnswer()}>
-                      COMPLETE CONNECTION
+                      ✅ COMPLETE CONNECTION
                     </button>
                   </>
                 )}
-                <p className="voi-fine">Direct device-to-device, no server. Same Wi-Fi works best. If the network blocks peer links, use ONE MOBILE mode instead.</p>
+                {rtcWaiting && <p className="voi-fine" style={{ color: 'var(--voi-gold)' }}>⏳ Answer accepted — their phone is connecting now (takes a few seconds). They land in the lobby automatically.</p>}
+                <p className="voi-fine">Direct device-to-device, no server, no accounts — works on DIFFERENT networks too (4G ↔ Wi-Fi) via the ticket above. Fresh ticket per friend!</p>
               </div>
             )}
 
@@ -612,15 +620,33 @@ export function RoomJoin({ onBack }: { onBack: () => void }) {
   const [voted, setVoted] = useState(false);
   const [revealShown, setRevealShown] = useState(false);
   const [guessIn, setGuessIn] = useState('');
+  const [waitSec, setWaitSec] = useState(0);
+  const [answerCopied, setAnswerCopied] = useState(false);
   const playerId = useMemo(() => 'guest-' + Math.random().toString(36).slice(2, 9), []);
+
+  useEffect(() => {
+    if (state !== 'connecting') return;
+    setWaitSec(0);
+    const iv = window.setInterval(() => setWaitSec((n) => n + 1), 1000);
+    return () => window.clearInterval(iv);
+  }, [state]);
+
+  const cancelConnect = () => {
+    transport.current?.close();
+    transport.current = null;
+    setAnswerOut('');
+    setState('menu');
+  };
 
   const transport = useRef<ReturnType<typeof openBroadcast> | ReturnType<typeof wrapDataChannel> | null>(null);
 
   const wireMessages = (t: { onMessage: (m: RoomMessage, f: string | null) => void }) => {
     t.onMessage = (m) => {
       if (m.t === 'joined') {
-        if (!m.ok) { alert(m.reason ?? 'Could not join.'); return; }
+        if (!m.ok) { alert(m.reason ?? 'Could not join.'); setState('menu'); return; }
         setRoster(m.roster);
+        setAnswerOut('');
+        setAnswerCopied(false);
         setState('lobby');
         return;
       }
@@ -712,11 +738,12 @@ export function RoomJoin({ onBack }: { onBack: () => void }) {
           </div>
           <textarea className="voi-input" rows={3} value={ticketIn} onChange={(e) => setTicketIn(e.target.value)} placeholder="paste join ticket…" />
           <button className="voi-btn voi-btn--white" onClick={() => void joinViaTicket()} disabled={!ticketIn.trim() || !name.trim()}>
-            CONNECT WITH TICKET
+            CONNECT WITH TICKET (then send back the answer code)
           </button>
           {answerOut && (
             <>
-              <p className="voi-label">SEND THIS ANSWER CODE BACK TO THE HOST:</p>
+              <p className="voi-label">2️⃣ ALMOST IN! Send THIS code back to the host — they must paste it to finish:</p>
+              <button type="button" className="voi-btn voi-btn--teal" onClick={() => void voiCopy(answerOut)}>📋 COPY ANSWER CODE</button>
               <textarea readOnly className="voi-input" rows={3} value={answerOut} />
             </>
           )}
@@ -724,7 +751,32 @@ export function RoomJoin({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
-      {state === 'connecting' && <p className="voi-sub">connecting to room… {answerOut && 'complete the answer code on the host phone!'}</p>}
+      {state === 'connecting' && (
+        <div className="voi-screencenter">
+          <div className="voi-card" style={{ maxWidth: 440, textAlign: 'center' }}>
+            <div className="voi-spinner" aria-hidden="true">📡</div>
+            <h2 style={{ margin: '6px 0' }}>CONNECTING…</h2>
+            {answerOut ? (
+              <>
+                <p className="voi-sub">2️⃣ THIS IS YOUR <b>ANSWER CODE</b> — copy it and send it to the host. They must paste it to finish:</p>
+                <textarea readOnly className="voi-input" rows={3} value={answerOut} style={{ fontSize: 11 }} />
+                <button type="button" className="voi-btn voi-btn--teal voi-btn--hero" onClick={() => { void voiCopy(answerOut); setAnswerCopied(true); }}>
+                  {answerCopied ? '✅ COPIED! NOW SEND IT TO THE HOST' : '📋 COPY ANSWER CODE'}
+                </button>
+                <p className="voi-fine">You jump into the lobby automatically the instant the host pastes it — {waitSec}s</p>
+              </>
+            ) : (
+              <p className="voi-sub">Asking the host to let you in… {waitSec}s</p>
+            )}
+            {waitSec >= 20 && (
+              <p className="voi-fine" style={{ color: 'var(--voi-gold)' }}>
+                ⏳ Still nothing? Host must paste the answer code while BOTH of you stay on this page. If it&apos;s been a minute, cancel and grab a FRESH ticket.
+              </p>
+            )}
+            <button type="button" className="voi-btn voi-btn--ghost" onClick={cancelConnect}>✕ CANCEL</button>
+          </div>
+        </div>
+      )}
 
       {state === 'lobby' && (
         <div className="voi-card">
@@ -869,5 +921,16 @@ export function RoomJoin({ onBack }: { onBack: () => void }) {
         )}
       </div>
     );
+  }
+}
+
+
+/** Copy helper with legacy fallback so it works over http + old webviews. */
+async function voiCopy(text: string): Promise<void> {
+  try { await navigator.clipboard.writeText(text); } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch { /* noop */ }
+    ta.remove();
   }
 }
