@@ -12,18 +12,20 @@ A **VR DEVELOPMENTS** project.
 
 Not another Base64 page. VR KRYPTA is a unified toolkit built around a single idea: **every transformation is a first-class, typed operation** registered in one engine. The same contract powers the searchable library, the universal workspace, and the pipeline lab.
 
-- **188 operations** across 9 categories — codes & representations, classical ciphers, encodings, hashing, compression, byte operations, text transforms, analysis, and cryptanalysis & detection. Every operation is genuinely implemented; there are no placeholders.
+- **190 operations** across 9 categories — codes & representations, classical ciphers, encodings, hashing, compression, byte operations, text transforms, analysis, and cryptanalysis & detection. Every operation is genuinely implemented; there are no placeholders.
 - **Universal workspace** — one interface that adapts to each operation's contract. Hashes never show a "Decode" button because hashes cannot be decoded.
 - **Pipeline lab** — chain operations (`Text → Caesar → Base64`), inspect every intermediate hop, export/import pipelines as validated JSON.
 - **Python in the browser** — selected operations (SHA-3, BLAKE2, Hill, Bifid, Trifid, Nihilist, Four-square, Fractionated Morse) run on real CPython via Pyodide/WebAssembly, lazily downloaded once and executed locally.
 - **Local-first** — no accounts, no backend, no analytics, no telemetry. Favorites, history and pipelines live in your browser (IndexedDB / localStorage).
 - **Offline PWA** — installable, with a service worker that caches the app shell and the Pyodide runtime.
+- **AUTO-DETECT** — paste unknown data and the engine profiles charset, structure, padding, entropy and statistics, *proves* candidates by really decoding them, and ranks what it is with confidence scores: encodings (hex/Base64/Base32/percent…), codes (Morse, Braille, semaphore, Bacon, tap…), classical ciphers (Caesar/ROT, Vigenère-like, Atbash, substitution reads), hash fingerprints, our own VK1 locker blobs, invisible ink, emoji skins, JWTs and data URIs. One-tap full decode, copy, CHAIN re-analysis, or open in the studio.
+- **LEARN MODE** — every operation gets a teaching card: what it is, how it works step-by-step, history, *live-computed* examples, real-world uses, limits and security notes, plus a built-in playground. Flagship systems (Morse, Vigenère, Enigma, AES locker, SHA-256…) carry hand-written DEEP DIVEs; the rest get honest AUTO PROFILEs generated from their own metadata — never invented history.
 
 ## Honest cryptography
 
 - Classical ciphers are historical study objects — every cipher page says so.
 - The **Secret Message Locker** is the one deliberately modern exception: real AES-256-GCM with PBKDF2-SHA-256 key stretching (200k rounds), fresh random salt/IV per message, and it still warns that its strength is bounded by the passphrase.
-- **Sharing is local-first too:** the SECRET DROP page and every operation's **Share result** button pack the data into the URL hash (`VK1.…` blobs or `x/<op>/<base64url>`), and never send bytes to any server. Links work fully offline once the PWA is cached.
+- **Sharing is local-first too:** the SECRET DROP page and every operation's **Share result** button pack the data into the URL hash (`VK1.…` blobs or `x/<op>/<base64url>`), and never send bytes to any server. Links work fully offline once the PWA is cached. Drops dress up in **324 reveal styles**, can carry a **timelock** (symmetric hash-chain grind), and support **BURN AFTER READING** — a count-down fuse that burns the screen to ash and re-arms the lock. Honest note in the UI: screenshots beat drama; the fuse burns the screen, never the link.
 - MD5 and SHA-1 carry explicit collision warnings.
 - Hashes are one-way: you can *verify* a digest, never "decode" one.
 - This is an exploration/education toolkit, not a password manager or a substitute for professional cryptographic review.

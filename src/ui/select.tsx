@@ -21,6 +21,7 @@ interface SelectProps {
 export function Select({ value, options, onChange, ariaLabel, className, maxHeight = 280 }: SelectProps) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [query, setQuery] = useState('');
   const rootRef = useRef<HTMLDivElement | null>(null);
   const uid = useId();
   const current = options.find((o) => o.value === value) ?? options[0];
@@ -44,7 +45,12 @@ export function Select({ value, options, onChange, ariaLabel, className, maxHeig
   const pick = (v: string) => {
     onChange(v);
     setOpen(false);
+    setQuery('');
   };
+  const searchable = options.length > 8;
+  const filtered = query
+    ? options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()))
+    : options;
 
   const onTriggerKey = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -53,11 +59,11 @@ export function Select({ value, options, onChange, ariaLabel, className, maxHeig
         setOpen(true);
         setActive(Math.max(0, options.findIndex((o) => o.value === value)));
       } else {
-        setActive((i) => (i + (e.key === 'ArrowDown' ? 1 : options.length - 1)) % options.length);
+        setActive((i) => (i + (e.key === 'ArrowDown' ? 1 : filtered.length - 1)) % Math.max(1, filtered.length));
       }
-    } else if ((e.key === 'Enter' || e.key === ' ') && open && active >= 0) {
+    } else if ((e.key === 'Enter' || e.key === ' ') && open && active >= 0 && filtered[active]) {
       e.preventDefault();
-      pick(options[active].value);
+      pick(filtered[active].value);
     }
   };
 
@@ -66,7 +72,7 @@ export function Select({ value, options, onChange, ariaLabel, className, maxHeig
       <button
         type="button"
         className="sel__trigger"
-        onClick={() => { setOpen((p) => !p); setActive(options.findIndex((o) => o.value === value)); }}
+        onClick={() => { setOpen((p) => !p); setActive(options.findIndex((o) => o.value === value)); if (open) setQuery(''); }}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
@@ -78,7 +84,27 @@ export function Select({ value, options, onChange, ariaLabel, className, maxHeig
       </button>
       {open && (
         <ul className="sel__panel" role="listbox" aria-label={ariaLabel} style={{ maxHeight }} tabIndex={-1}>
-          {options.map((o, i) => (
+          {searchable && (
+            <li role="presentation" className="sel__searchrow">
+              <input
+                type="text"
+                className="sel__search"
+                placeholder={`Search ${options.length}…`}
+                value={query}
+                autoFocus
+                onChange={(e) => { setQuery(e.target.value); setActive(0); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => (a + 1) % Math.max(1, filtered.length)); }
+                  if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => (a - 1 + filtered.length) % Math.max(1, filtered.length)); }
+                  if (e.key === 'Enter' && filtered[active >= 0 ? active : 0]) { e.preventDefault(); pick(filtered[active >= 0 ? active : 0].value); }
+                  if (e.key === 'Escape') { e.preventDefault(); setOpen(false); setQuery(''); }
+                }}
+                aria-label={`Search options`}
+              />
+            </li>
+          )}
+          {filtered.length === 0 && <li role="presentation" className="sel__empty">no match — try another word</li>}
+          {filtered.map((o, i) => (
             <li key={o.value} role="presentation">
               <button
                 type="button"
@@ -86,7 +112,7 @@ export function Select({ value, options, onChange, ariaLabel, className, maxHeig
                 role="option"
                 aria-selected={o.value === value}
                 className={`sel__item ${o.value === value ? 'sel__item--on' : ''} ${i === active ? 'sel__item--active' : ''}`}
-                style={{ animationDelay: `${Math.min(i * 28, 320)}ms` }}
+                style={{ animationDelay: `${Math.min(i * 24, 280)}ms` }}
                 onClick={() => pick(o.value)}
                 onMouseEnter={() => setActive(i)}
               >

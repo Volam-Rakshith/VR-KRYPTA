@@ -5,7 +5,8 @@
 
 export interface Palette { name: string; c1: string; c2: string; c3: string; }
 export interface Pattern { name: string; cls: string; }
-export interface DropStyle { index: number; name: string; palette: Palette; pattern: Pattern; }
+export interface Motif { name: string; cls: string; }
+export interface DropStyle { index: number; name: string; palette: Palette; pattern: Pattern; motif: Motif; }
 
 const PALETTES: Palette[] = [
   { name: 'KRYPTA NEON', c1: '#22d3ee', c2: '#8b5cf6', c3: '#3b82f6' },
@@ -34,19 +35,42 @@ const PATTERNS: Pattern[] = [
   { name: 'Dark Matter', cls: 'sdp-matter' }
 ];
 
-export const STYLE_COUNT = PALETTES.length * PATTERNS.length; // 108
+// Third dimension: the reveal TITLE treatment — ×3 the whole matrix.
+const MOTIFS: Motif[] = [
+  { name: 'Solid', cls: 'mot-solid' },
+  { name: 'Phantom', cls: 'mot-phantom' }, // outline-only glyphs with inner glow
+  { name: 'Echo', cls: 'mot-echo' }        // stacked neon after-images
+];
+
+export const STYLE_COUNT = PALETTES.length * PATTERNS.length * MOTIFS.length; // 324
 
 export function styleAt(index: number): DropStyle {
   const i = ((index % STYLE_COUNT) + STYLE_COUNT) % STYLE_COUNT;
   const p = PALETTES[i % PALETTES.length];
-  const t = PATTERNS[Math.floor(i / PALETTES.length)];
-  return { index: i, name: `${p.name} · ${t.name}`, palette: p, pattern: t };
+  const m = MOTIFS[Math.floor(i / (PALETTES.length * PATTERNS.length))];
+  const t = PATTERNS[Math.floor(i / PALETTES.length) % PATTERNS.length];
+  return { index: i, name: `${p.name} · ${t.name} · ${m.name}`, palette: p, pattern: t, motif: m };
 }
 
 export function randomStyleIndex(except = -1): number {
   let idx = (Math.random() * STYLE_COUNT) | 0;
   if (idx === except) idx = (idx + 1) % STYLE_COUNT;
   return idx;
+}
+
+/** Fuse options offered in the drop builder. */
+export const BURN_FUSES = [5, 15, 30, 60];
+
+/** Append a burn-after-reading fuse marker to a share path fragment. */
+export function withBurnMarker(fragment: string, fuseSeconds: number): string {
+  return `${fragment}/b${Math.min(3600, Math.max(1, Math.round(fuseSeconds)))}`;
+}
+
+/** Split '/b<seconds>' off a share payload path — returns remaining path + fuse. */
+export function splitBurnMarker(payload: string): { rest: string; fuse: number | null } {
+  const m = payload.match(/^(.*)\/b(\d{1,4})$/);
+  if (!m) return { rest: payload, fuse: null };
+  return { rest: m[1], fuse: Math.min(3600, Math.max(1, Number(m[2]))) };
 }
 
 /** Append a style marker to a share path fragment. */

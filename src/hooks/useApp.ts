@@ -4,7 +4,7 @@ import { getData, getPrefs, subscribeStore } from '../services/store';
 import type { AppData, Prefs } from '../services/store';
 
 export interface Route {
-  name: 'home' | 'explore' | 'op' | 'pipelines' | 'settings' | 'about' | 'share';
+  name: 'home' | 'explore' | 'op' | 'pipelines' | 'settings' | 'about' | 'share' | 'detect' | 'learn' | 'game';
   param?: string;
 }
 
@@ -17,6 +17,9 @@ function parseHash(hash: string): Route {
   if (parts[0] === 'settings') return { name: 'settings' };
   if (parts[0] === 'about') return { name: 'about' };
   if (parts[0] === 'share') return { name: 'share', param: parts.slice(1).join('/') || undefined };
+  if (parts[0] === 'detect') return { name: 'detect' };
+  if (parts[0] === 'learn') return { name: 'learn', param: parts[1] ? decodeURIComponent(parts[1]) : undefined };
+  if (parts[0] === 'game') return { name: 'game' };
   return { name: 'home' };
 }
 

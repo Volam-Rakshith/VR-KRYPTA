@@ -8,6 +8,9 @@ import { defaultOptions } from '../src/operations/core/types';
 import type { IOValue, OpContext } from '../src/operations/core/types';
 import { utf8 } from '../src/utils/bytes';
 import { toMorseCode, morseEvents, morseDuration } from '../src/operations/morseAudio';
+import { grindChain, lockerEncryptTimelock, lockerDecrypt, isTimelocked, calibrateRounds } from '../src/operations/locker';
+import { EMOJI_THEMES, emojiEncode, emojiDecode } from '../src/operations/emojiSkin';
+import { inkEncode, inkDecode, hasInk } from '../src/operations/invisibleInk';
 import vectorsJson from './vectors/core.json';
 
 const vectors = vectorsJson as Record<
@@ -330,5 +333,106 @@ describe('morse audio & light', () => {
     const out = wavRun.run({ kind: 'text', text: 'ab' }, { wpm: 999, hz: -5 }, ctx) as IOValue;
     expect(out.text).toContain('300 Hz'); // hz clamped from -5
     expect((out.bytes!.length - 44) / 2 / 22050).toBeLessThan(1); // wpm 999 clamped to 40 => short file
+  });
+});
+
+describe('invisible ink (zero-width)', () => {
+  it('round-trips a secret through a cover', () => {
+    const cover = "can't talk rn, busy with school 😅";
+    const hidden = inkEncode(cover, 'meet at midnight');
+    expect(hidden.startsWith(cover)).toBe(true);
+    expect(hasInk(hidden)).toBe(true);
+    expect(hasInk(cover)).toBe(false);
+    expect(inkDecode(hidden)).toBe('meet at midnight');
+  });
+
+  it('survives unicode payloads and multiple blocks', () => {
+    const together = `${inkEncode('a', 'hola 🔦')} ${inkEncode('b', 'runner 🏴‍☠️')}`;
+    expect(inkDecode(together)).toBe('hola 🔦\n———\nrunner 🏴‍☠️');
+  });
+
+  it('returns null for clean text and tolerates broken payloads', () => {
+    expect(inkDecode('totally normal sentence')).toBeNull();
+    expect(inkDecode('weirdtext\u200b\u200b')).toBeNull(); // no sentinels
+    expect(inkDecode('a⁠⁠2060-sentinel' + '\u2060' + '\u200b' + '\u2060' + ' tail')).toBeNull(); // 1 char: not %4
+  });
+
+  it('op actions hide and extract through the registry', async () => {
+    const op = getOp('invisible-ink')!;
+    const hide = op.actions.find((a) => a.id === 'encipher')!;
+    const extract = op.actions.find((a) => a.id === 'decipher')!;
+    const hid = (await hide.run(buildInput('movie night? 🎬'), { secret: 'bring pizza' }, ctx)).text;
+    const ext = (await extract.run(buildInput(hid), {}, ctx)).text;
+    expect(ext).toBe('bring pizza');
+    await expect(Promise.resolve().then(() => hide.run(buildInput('cover'), { secret: 'x'.repeat(560) }, ctx))).rejects.toThrow(/500/);
+  });
+});
+
+describe('timelock drop (hash-chain grind)', () => {
+  it('grinds deterministically from a seed', async () => {
+    const a = await grindChain('a1b2c3d4e5f60718293a4b5c6d7e8f90', 20);
+    const b = await grindChain('a1b2c3d4e5f60718293a4b5c6d7e8f90', 20);
+    expect(a).toBe(b);
+    expect(a).toMatch(/^[0-9a-f]{64}$/);
+    const c = await grindChain('a1b2c3d4e5f60718293a4b5c6d7e8f90', 30);
+    expect(c).not.toBe(a); // more rounds, different stopping point
+  });
+
+  it('timelock blob round-trips and reports progress', async () => {
+    const pcts: number[] = [];
+    const blob = await lockerEncryptTimelock('sleeping secret', 'correct horse', 400, (f) => pcts.push(f));
+    expect(blob).toMatch(/^VK1\.T\.[0-9a-f]{32}\.400\./);
+    expect(isTimelocked(blob)).toBe(true);
+    expect(isTimelocked('VK1.a.b.c')).toBe(false);
+    expect(pcts.length).toBeGreaterThan(1);
+    expect(pcts[pcts.length - 1]).toBe(1);
+    const back: number[] = [];
+    expect(await lockerDecrypt(blob, 'correct horse', (f) => back.push(f))).toBe('sleeping secret');
+    expect(back[back.length - 1]).toBe(1);
+  });
+
+  it('timelock decrypt: grind runs, then wrong-pass fails loudly', async () => {
+    const blob = await lockerEncryptTimelock('x', 'good-pass1', 50);
+    let grinded = false;
+    await expect(
+      Promise.resolve().then(() => lockerDecrypt(blob, 'bad-pass1!', () => { grinded = true; }))
+    ).rejects.toThrow();
+    expect(grinded).toBe(true);
+  });
+
+  it('calibrateRounds returns a sane positive integer', async () => {
+    const r = await calibrateRounds(0.05);
+    expect(r).toBeGreaterThanOrEqual(5000);
+    expect(Number.isInteger(r)).toBe(true);
+  });
+});
+
+describe('emoji cipherskin', () => {
+  it('round-trips every theme on plain text and unicode', () => {
+    for (const t of Object.keys(EMOJI_THEMES)) {
+      expect(emojiDecode(emojiEncode('meet at midnight 🔦', t), t)).toBe('meet at midnight 🔦');
+    }
+    expect(emojiDecode(emojiEncode('Hi!', 'animals'), 'animals')).toBe('Hi!');
+  });
+
+  it('round-trips VK1 blob characters', () => {
+    const blob = 'VK1.a1-b2_c3.d4-e5_f6.g7-h8_i9';
+    for (const t of ['animals', 'vibes']) expect(emojiDecode(emojiEncode(blob, t), t)).toBe(blob);
+  });
+
+  it('rejects strays and broken streams with clear errors', () => {
+    expect(() => emojiDecode('🐶🐱Z', 'animals')).toThrow(/Stray glyph/);
+    expect(() => emojiDecode('some plain words', 'animals')).toThrow(/Stray glyph|No skin emoji/);
+    expect(() => emojiDecode(EMOJI_THEMES.animals.map[0], 'animals')).toThrow(/half a byte/);
+  });
+
+  it('performs through the registry with the default theme', async () => {
+    const op = getOp('emoji-skin')!;
+    const skin = op.actions.find((a) => a.id === 'encipher')!;
+    const unskin = op.actions.find((a) => a.id === 'decipher')!;
+    const out1 = (await skin.run(buildInput('sos 🆘'), { theme: 'space' }, ctx)).text;
+    expect(out1).not.toMatch(/[A-Za-z0-9]/); // pure emoji, no ascii leaks
+    const out2 = (await unskin.run(buildInput(out1), { theme: 'space' }, ctx)).text;
+    expect(out2).toBe('sos 🆘');
   });
 });

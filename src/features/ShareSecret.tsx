@@ -2,15 +2,17 @@
 // Create mode: type a secret + passphrase → VK1 blob + share link.
 // Reveal mode (#/share/VK1...): branded landing that shows the sealed blob,
 // a copy button, and a passphrase prompt to reveal the message in place.
-import { useMemo, useState } from 'react';
-import { lockerEncrypt, lockerDecrypt } from '../operations/locker';
+import { useMemo, useState, useEffect } from 'react';
+import { lockerEncrypt, lockerEncryptTimelock, lockerDecrypt, calibrateRounds, isTimelocked } from '../operations/locker';
+import { inkEncode, inkDecode, hasInk } from '../operations/invisibleInk';
 import { getOp } from '../operations';
 import { Icon } from '../ui/icons';
 import { TiltLogo, ScrambleButton, spawnRipple } from '../ui/fx';
 import { useToast } from '../ui/components';
 import { navigate } from '../hooks/useApp';
 import { parseCaptured, capturedInvite } from '../services/share';
-import { styleAt, randomStyleIndex, withStyleMarker, splitStyleMarker, styleTokens, STYLE_COUNT } from './shareThemes';
+import { maskText, cinematicFrames, blip } from '../services/cinema';
+import { styleAt, randomStyleIndex, withStyleMarker, withBurnMarker, splitStyleMarker, splitBurnMarker, styleTokens, STYLE_COUNT, BURN_FUSES } from './shareThemes';
 import { Select } from '../ui/select';
 
 type ToastFn = ReturnType<typeof useToast>;
@@ -126,9 +128,20 @@ function CreateView() {
   const [busy, setBusy] = useState(false);
   const [blob, setBlob] = useState<string | null>(null);
   const [styleIdx, setStyleIdx] = useState(() => randomStyleIndex());
+  const [cover, setCover] = useState("can't talk rn, busy with school 😅");
+  const [timelock, setTimelock] = useState(false);
+  const [tlSeconds, setTlSeconds] = useState(15);
+  const [burn, setBurn] = useState(false);
+  const [burnFuse, setBurnFuse] = useState(15);
+  const [grind, setGrind] = useState<number | null>(null);
   const style = styleAt(styleIdx);
 
-  const link = useMemo(() => (blob ? shareUrl(withStyleMarker(blob, styleIdx)) : null), [blob, styleIdx]);
+  const link = useMemo(() => {
+    if (!blob) return null;
+    let frag = withStyleMarker(blob, styleIdx);
+    if (burn) frag = withBurnMarker(frag, burnFuse);
+    return shareUrl(frag);
+  }, [blob, styleIdx, burn, burnFuse]);
 
   const strength = pass.length === 0 ? '' : pass.length < 6 ? 'too short' : pass.length < 10 ? 'okay' : pass.length < 16 ? 'good' : 'fortress';
 
@@ -137,12 +150,19 @@ function CreateView() {
     if (pass.length < 6) { toast('Passphrase needs 6+ characters', 'err'); return; }
     setBusy(true);
     try {
-      setBlob(await lockerEncrypt(message.trim(), pass));
+      if (timelock) {
+        setGrind(0);
+        const rounds = await calibrateRounds(tlSeconds);
+        setBlob(await lockerEncryptTimelock(message.trim(), pass, rounds, setGrind));
+      } else {
+        setBlob(await lockerEncrypt(message.trim(), pass));
+      }
       toast('Secret sealed — share the link', 'ok');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Sealing failed', 'err');
     } finally {
       setBusy(false);
+      setGrind(null);
     }
   };
 
@@ -177,10 +197,54 @@ function CreateView() {
           autoComplete="off"
         />
         {/* SECRET DROP 2.0 — the reveal page wears the style you forge here. */}
+        <div className="timelock">
+          <button type="button" className={`tl-toggle ${timelock ? 'tl-toggle--on' : ''}`} onClick={() => setTimelock(!timelock)} aria-pressed={timelock}>
+            <Icon name="clock" size={13} /> ⏳ TIMELOCK DROP <span className="tl-toggle__pill">{timelock ? 'ON' : 'OFF'}</span>
+          </button>
+          {timelock && (
+            <div className="tl-body">
+              <Select
+                className="tl-select"
+                value={String(tlSeconds)}
+                onChange={(v) => setTlSeconds(Number(v))}
+                ariaLabel="Grind duration"
+                options={[
+                  { value: '10', label: '~10 seconds of grind' },
+                  { value: '30', label: '~30 seconds of grind' },
+                  { value: '60', label: '~1 minute of grind' },
+                  { value: '120', label: '~2 minutes of grind' }
+                ]}
+              />
+              {grind !== null && (
+                <div className="tl-bar" role="progressbar" aria-valuenow={Math.round(grind * 100)} aria-valuemin={0} aria-valuemax={100}>
+                  <span style={{ width: `${grind * 100}%` }} />
+                </div>
+              )}
+              <p className="share__fine">Honest mechanics: the secret's key is stretched through a hash-chain grind. YOUR device grinds once now, THEIRS grinds once on open — each side waits once. Friction as theater; the AES lock is the real wall.</p>
+            </div>
+          )}
+        </div>
+        <div className="timelock">
+          <button type="button" className={`burn-toggle ${burn ? 'burn-toggle--on' : ''}`} onClick={() => setBurn(!burn)} aria-pressed={burn}>
+            <Icon name="bolt" size={13} /> 🔥 BURN AFTER READING <span className="tl-toggle__pill">{burn ? 'ON' : 'OFF'}</span>
+          </button>
+          {burn && (
+            <div className="tl-body burn-body">
+              <Select
+                className="tl-select"
+                value={String(burnFuse)}
+                onChange={(v) => setBurnFuse(Number(v))}
+                ariaLabel="Burn fuse"
+                options={BURN_FUSES.map((f) => ({ value: String(f), label: f < 60 ? `burns ${f}s after reveal` : 'burns 1 minute after reveal' }))}
+              />
+              <p className="share__fine">Theater, not magic: once the recipient reveals the message, a count-down runs and the screen burns to ash — then the lock re-arms. Screenshots beat drama; the fuse burns this screen, never the link. Anybody with the passphrase can relight it.</p>
+            </div>
+          )}
+        </div>
         <label className="share__label">reveal style <span className="share__strength">{STYLE_COUNT} looks</span></label>
         <div className="sdstyle">
           <div className={`sdstyle__preview ${style.pattern.cls}`} style={styleTokens(style)} aria-hidden="true">
-            <span className="sdstyle__title">SEALED FOR YOU</span>
+            <span className={`sdstyle__title ${style.motif.cls}`}>SEALED FOR YOU</span>
             <span className="sdstyle__sub">VR — KRYPTA · by VR DEVELOPMENTS</span>
           </div>
           <div className="sdstyle__picker">
@@ -203,7 +267,7 @@ function CreateView() {
           </div>
         </div>
         <ScrambleButton
-          label={busy ? 'SEALING…' : 'SEAL THE SECRET'}
+          label={busy ? (grind !== null ? `GRINDING… ${Math.round(grind * 100)}%` : 'SEALING…') : 'SEAL THE SECRET'}
           icon="bolt"
           className="btn--primary btn--lg share__forge"
           disabled={busy}
@@ -211,6 +275,8 @@ function CreateView() {
         />
         <p className="share__fine">AES-256-GCM + PBKDF2 × 200,000 · sealed locally in your browser · nothing is uploaded anywhere.</p>
       </section>
+
+      <GhostDetector />
 
       {blob && link && (
         <section className="share__card share__result">
@@ -228,13 +294,84 @@ function CreateView() {
             </button>
           </div>
           <p className="share__fine">Send the link or blob over anything. Send the <strong>passphrase separately</strong> — that separation is the whole point.</p>
+          <div className="ghostwrap">
+            <p className="share__label"><span className="ghostwrap__tag">NEW</span> ghost mode — invisible ink</p>
+            <input
+              className="input share__pass"
+              type="text"
+              value={cover}
+              maxLength={160}
+              onChange={(e) => setCover(e.target.value)}
+              aria-label="Innocent cover text"
+            />
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm ghostwrap__btn"
+              onClick={() => void copyText(inkEncode(cover.trim(), blob), 'Ghost message copied — it LOOKS like plain text', toast)}
+            >
+              <Icon name="fingerprint" size={13} /> Copy ghost message
+            </button>
+            <p className="share__fine">Your blob hides invisibly after that sentence. The recipient pastes it into the <strong>ghost detector</strong> below (or the Invisible Ink op) to pull it out. Test it first — some platforms strip invisible characters.</p>
+          </div>
         </section>
       )}
     </div>
   );
 }
 
+/* ------------------------------ GHOST DETECTOR ----------------------------- */
+
+/** Paste any suspicious text — invisible ink surfaces instantly; VK1 blobs jump to reveal. */
+function GhostDetector() {
+  const toast = useToast();
+  const [text, setText] = useState('');
+  const [found, setFound] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+
+  const scan = () => {
+    setDirty(true);
+    if (!hasInk(text)) { setFound(null); toast('No invisible ink in that text', 'info'); return; }
+    const out = inkDecode(text);
+    if (out === null) { setFound(null); toast('Invisible characters present but payload is broken — platform likely stripped it', 'err'); return; }
+    const m = out.match(/VK1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/);
+    if (m) { navigate(`/share/${m[0]}`); return; }
+    setFound(out);
+  };
+
+  return (
+    <section className="share__card ghostdet">
+      <p className="share__label"><span className="ghostwrap__tag">NEW</span> 👻 ghost detector</p>
+      <p className="share__fine" style={{ margin: '0 0 10px' }}>Got a message that feels… oddly spaced? Paste it here. Invisible secrets surface instantly; sealed VK1 blobs jump straight to the reveal page.</p>
+      <textarea
+        className="io-area share__msg"
+        rows={3}
+        placeholder="paste the suspicious text…"
+        value={text}
+        onChange={(e) => { setText(e.target.value); setFound(null); setDirty(false); }}
+      />
+      <div className="share__row">
+        <button type="button" className="btn btn--violet btn--sm" onClick={scan}>
+          <Icon name="fingerprint" size={13} /> SCAN FOR INK
+        </button>
+      </div>
+      {found && (
+        <div className="share__secret" style={{ marginTop: 12 }}>
+          {found}
+          <div className="share__row">
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copyText(found, 'Extracted secret copied', toast)}>
+              <Icon name="copy" size={13} /> Copy
+            </button>
+          </div>
+        </div>
+      )}
+      {dirty && !found && <p className="share__err">✓ clean — no invisible ink detected.</p>}
+    </section>
+  );
+}
+
 /* ------------------------------- REVEAL MODE ------------------------------- */
+
+type CinPhase = 'idle' | 'scan' | 'crawl' | 'done';
 
 function RevealView({ payload }: { payload: string }) {
   const toast = useToast();
@@ -242,16 +379,80 @@ function RevealView({ payload }: { payload: string }) {
   const [busy, setBusy] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
   const [err, setErr] = useState('');
-  const { clean, style } = splitStyleMarker(payload);
+  const { rest, fuse } = splitBurnMarker(payload);
+  const { clean, style } = splitStyleMarker(rest);
   const tokens = styleTokens(style ?? styleAt(0));
+  const [cin, setCin] = useState<CinPhase>('idle');
+  const [shown, setShown] = useState(0);
+  const [grindPct, setGrindPct] = useState<number | null>(null);
+  const [burnPhase, setBurnPhase] = useState<'idle' | 'count' | 'burn' | 'ash'>('idle');
+  const [fuseLeft, setFuseLeft] = useState<number>(fuse ?? 0);
+  const timelocked = isTimelocked(clean);
+  const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // cinematic crawl: cipher noise resolves character-by-character with synth ticks
+  useEffect(() => {
+    if (!secret || cin !== 'crawl' || reduced) return;
+    void blip(1180, 40, 0.05);
+    const { frames, perFrame } = cinematicFrames(secret);
+    let f = 0;
+    const iv = setInterval(() => {
+      f++;
+      setShown((s2) => s2 + perFrame);
+      if (f % 5 === 0) void blip(940, 24, 0.03);
+      if (f >= frames) {
+        clearInterval(iv);
+        setShown(secret.length);
+        setCin('done');
+        void blip(660, 60, 0.06);
+        setTimeout(() => void blip(1320, 50, 0.05), 90);
+        setTimeout(() => void blip(1760, 70, 0.04), 190);
+      }
+    }, 26);
+    return () => clearInterval(iv);
+  }, [cin, secret, reduced]);
+
+  // burn-after-reading fuse: starts the second the message is fully visible
+  useEffect(() => {
+    if (secret === null || fuse === null || burnPhase === 'ash' || burnPhase === 'burn') return;
+    if (cin !== 'done') return;
+    setBurnPhase('count');
+    let left = fuse;
+    setFuseLeft(left);
+    const iv = setInterval(() => {
+      left -= 1;
+      setFuseLeft(left);
+      if (left <= 5 && left > 0) void blip(300 + (5 - left) * 120, 60, 0.06);
+      if (left <= 0) {
+        clearInterval(iv);
+        setBurnPhase('burn');
+        void blip(140, 500, 0.09);
+        setTimeout(() => {
+          setSecret(null);
+          setCin('idle');
+          setShown(0);
+          setPass('');
+          setBurnPhase('ash');
+        }, 1900);
+      }
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [secret, fuse, cin, burnPhase]);
 
   const reveal = async () => {
     if (!pass) { setErr('Enter the passphrase the sender gave you.'); return; }
     setBusy(true);
     setErr('');
     try {
-      const msg = await lockerDecrypt(clean, pass);
+      const msg = await lockerDecrypt(clean, pass, isTimelocked(clean) ? setGrindPct : undefined);
+      setBurnPhase('idle');
       setSecret(msg);
+      if (reduced) { void blip(880, 50, 0.05); setCin('done'); setShown(msg.length); }
+      else {
+        setCin('scan');
+        void blip(520, 60, 0.05);
+        setTimeout(() => setCin('crawl'), 850);
+      }
       // little celebration: ripple burst in the card colors
       const cols = style ? [style.palette.c1, style.palette.c2, style.palette.c3] : ['#22d3ee', '#8b5cf6', '#3b82f6'];
       for (let i = 0; i < 9; i++) {
@@ -264,9 +465,10 @@ function RevealView({ payload }: { payload: string }) {
         }, i * 90);
       }
     } catch {
-      setErr('That passphrase doesn\'t open this — check it with the sender.');
+      setErr('That passphrase doesn\'t open it — grind spent, result lost. Check it with the sender.');
     } finally {
       setBusy(false);
+      setGrindPct(null);
     }
   };
 
@@ -275,11 +477,16 @@ function RevealView({ payload }: { payload: string }) {
       <header className="share__head">
         <TiltLogo size={96} />
         <p className="share__eyebrow">VR — KRYPTA · BY VR DEVELOPMENTS</p>
-        <h1 className="neon-title">SEALED FOR YOU</h1>
+        <h1 className={`neon-title ${style?.motif.cls ?? "mot-solid"}`}>SEALED FOR YOU</h1>
         <p className="share__sub">Someone sent you a locked message. Only the passphrase opens it.</p>
         {style && <span className="share__stylechip">{style.name}</span>}
       </header>
 
+      {!secret && burnPhase === 'ash' && (
+        <div className="burn-ash" role="status">
+          <Icon name="x" size={13} /> 🔥 ashes. The screen burned on schedule — the lock re-armed. Enter the passphrase to relight it.
+        </div>
+      )}
       {!secret && (
         <section className="share__card share__card--glowborder">
           <p className="share__label">sealed code</p>
@@ -289,6 +496,7 @@ function RevealView({ payload }: { payload: string }) {
               <Icon name="copy" size={13} /> Copy code
             </button>
           </div>
+          {timelocked && <p className="tl-note"><Icon name="clock" size={12} /> TIMELOCKED DROP — this device must grind once to open it ({clean.match(/VK1\.T\.[0-9a-f]{32}\.(\d+)/)?.[1] ?? '∞'} rounds). So will yours if you're lying about the passphrase. 😈</p>}
           <label className="share__label" htmlFor="rv-pass">reveal code here</label>
           <div className="share__revealrow">
             <input
@@ -310,6 +518,14 @@ function RevealView({ payload }: { payload: string }) {
               onClick={() => void reveal()}
             />
           </div>
+          {grindPct !== null && (
+            <div className="tl-grind">
+              <div className="tl-bar" role="progressbar" aria-valuenow={Math.round(grindPct * 100)} aria-valuemin={0} aria-valuemax={100}>
+                <span style={{ width: `${grindPct * 100}%` }} />
+              </div>
+              <span className="tl-grind__pct">GRINDING {Math.round(grindPct * 100)}% — your device is doing the wait</span>
+            </div>
+          )}
           {err && <p className="share__err">{err}</p>}
           <p className="share__fine">Decryption happens locally in this browser (AES-256-GCM). The passphrase never leaves the device.</p>
         </section>
@@ -318,7 +534,22 @@ function RevealView({ payload }: { payload: string }) {
       {secret !== null && (
         <section className="share__card share__card--revealed">
           <p className="share__label">the secret</p>
-          <div className="share__secret">{secret}</div>
+          {fuse !== null && burnPhase === 'count' && (
+            <div className="burn-chip" role="timer" aria-live="polite">
+              <Icon name="bolt" size={12} /> 🔥 burns in <strong>{fuseLeft}s</strong>
+              <span className="burn-note">screenshots beat drama — this fuse burns the screen, not the link</span>
+            </div>
+          )}
+          {cin !== 'done' && <div className="cin-scan" aria-hidden="true" />}
+          {burnPhase === 'burn' && <div className="burn-fire" aria-hidden="true" />}
+          <div
+            className={`share__secret ${cin !== 'done' ? 'share__secret--cin' : ''} ${burnPhase === 'burn' ? 'share__secret--burning' : ''}`}
+            onClick={() => { if (cin !== 'done') { setShown(secret.length); setCin('done'); } }}
+            title={cin !== 'done' ? 'tap to finish instantly' : undefined}
+            role={cin !== 'done' ? 'button' : undefined}
+          >
+            {cin === 'done' ? secret : maskText(secret, shown)}
+          </div>
           <div className="share__row">
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copyText(secret, 'Secret copied', toast)}>
               <Icon name="copy" size={13} /> Copy

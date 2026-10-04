@@ -1,6 +1,8 @@
 // Importing this module registers the entire operation library.
 import './codes';
 import './morseAudio';
+import './invisibleInk';
+import './emojiSkin';
 import './codesExtra';
 import './encodings';
 import './encodingsExtra';

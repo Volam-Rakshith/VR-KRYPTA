@@ -43,13 +43,66 @@ export async function lockerEncrypt(message: string, pass: string): Promise<stri
   return `VK1.${b64url(salt)}.${b64url(iv)}.${b64url(ct)}`;
 }
 
+/** Sequential hash-chain grind — the honest timelock cost. Both sides pay it once. */
+export async function grindChain(seedHex: string, rounds: number, onProgress?: (frac: number) => void): Promise<string> {
+  let digest = new Uint8Array(seedHex.match(/../g)!.map((h) => parseInt(h, 16)));
+  const reportEvery = Math.max(500, Math.floor(rounds / 60));
+  for (let i = 0; i < rounds; i++) {
+    digest = new Uint8Array(await crypto.subtle.digest('SHA-256', toRigid(digest)));
+    if (onProgress && i % reportEvery === 0) onProgress(i / rounds);
+  }
+  onProgress?.(1);
+  let hex = '';
+  for (let i = 0; i < digest.length; i++) hex += digest[i].toString(16).padStart(2, '0');
+  return hex;
+}
+
+/** Estimate how many chain rounds ≈ targetSeconds on this device (measured once by the caller). */
+export async function calibrateRounds(targetSeconds: number): Promise<number> {
+  const t0 = performance.now();
+  await grindChain('00000000000000000000000000000000', 2000);
+  const perRoundMs = Math.max(0.004, (performance.now() - t0) / 2000);
+  const rounds = Math.round((targetSeconds * 1000) / perRoundMs);
+  return Math.min(6_000_000, Math.max(5_000, rounds));
+}
+
+const TL_RE = /VK1\.T\.([0-9a-f]{32})\.(\d+)\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)/;
+
+/** Timelock lock: key material = passphrase + local hash-chain grind. */
+export async function lockerEncryptTimelock(message: string, pass: string, rounds: number, onProgress?: (frac: number) => void): Promise<string> {
+  if (pass.length < 6) throw new Error('Give a passphrase of 6+ characters.');
+  const seedBytes = crypto.getRandomValues(new Uint8Array(16));
+  let seedHex = '';
+  for (let i = 0; i < seedBytes.length; i++) seedHex += seedBytes[i].toString(16).padStart(2, '0');
+  const grind = await grindChain(seedHex, rounds, onProgress);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await lockerKey(pass + '|TL|' + grind, salt, 200_000);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: toRigid(iv) }, key, toRigid(utf8.encode(message))));
+  return `VK1.T.${seedHex}.${rounds}.${b64url(salt)}.${b64url(iv)}.${b64url(ct)}`;
+}
+
 /** Unlock a VK1 blob; throws on wrong passphrase or corruption. */
-export async function lockerDecrypt(payload: string, pass: string): Promise<string> {
+export async function lockerDecrypt(payload: string, pass: string, onProgress?: (frac: number) => void): Promise<string> {
+  const tl = payload.trim().match(TL_RE);
+  if (tl) {
+    const [, seedHex, roundsTxt, saltB, ivB, ctB] = tl;
+    // Grind runs even on a wrong passphrase — the wait IS the point (and it rate-limits guessing).
+    const grind = await grindChain(seedHex, Number(roundsTxt), onProgress);
+    const key = await lockerKey(pass + '|TL|' + grind, unb64url(saltB), 200_000);
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: toRigid(unb64url(ivB)) }, key, toRigid(unb64url(ctB)));
+    return utf8.decodeStrict(new Uint8Array(pt));
+  }
   const m = payload.trim().match(/VK1\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)/);
   if (!m) throw new Error('No VK1 payload found.');
   const key = await lockerKey(pass, unb64url(m[1]), 200_000);
   const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: toRigid(unb64url(m[2])) }, key, toRigid(unb64url(m[3])));
   return utf8.decodeStrict(new Uint8Array(pt));
+}
+
+/** True when the blob needs the timelock grind before decrypting. */
+export function isTimelocked(payload: string): boolean {
+  return payload.trim().startsWith('VK1.T.');
 }
 
 defineOp({

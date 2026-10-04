@@ -40,7 +40,8 @@ const PATHS: Record<string, JSX.Element> = {
   terminal: <path d="M4 5h16v14H4zM8 9l3 3-3 3m5 0h4" />,
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   history: <path d="M4 5v5h5M4.5 14a8 8 0 1 0 .7-5.5M12 8v4.5l3 2" />,
-  flask: <path d="M9 3h6M10 3v6L4.5 19a1.6 1.6 0 0 0 1.4 2h12.2a1.6 1.6 0 0 0 1.4-2L14 9V3M8 15h8" />
+  flask: <path d="M9 3h6M10 3v6L4.5 19a1.6 1.6 0 0 0 1.4 2h12.2a1.6 1.6 0 0 0 1.4-2L14 9V3M8 15h8" />,
+  gamepad: <path d="M7.5 8h9a4.5 4.5 0 0 1 4.56 5.53l-.57 2.13a2.5 2.5 0 0 1-4.36 1.02L15.5 15h-7l-1.63 1.68a2.5 2.5 0 0 1-4.36-1.02L1.94 13.53A4.5 4.5 0 0 1 6.5 8h1zm1 2.5v3M7 12h3m5-1.2h.01M17.2 12h.01" />
 };
 
 export interface IconProps {
