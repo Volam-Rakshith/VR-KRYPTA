@@ -13,8 +13,7 @@ import { pickWord, imposterHintWord, RECENT_WORD_LIMIT, WordPick } from './words
 import { pushRecentWord, getRecentWords, saveLastGame, recordGameStats } from './store';
 import { sfx, music } from './audio';
 import {
-  makeRoomCode, openBroadcast, hostOfferTicket, hostAcceptAnswer, guestAcceptTicket,
-  newHostPeer, wrapDataChannel, rtcErrorMessage, RoomMessage
+  makeRoomCode, joinNetRoom, joinFailMessage, NetTransport, RoomMessage
 } from './room';
 import { SettingsScreen } from './ImposterGame';
 
@@ -66,34 +65,30 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
   const [winsSoFar, setWinsSoFar] = useState<Winner[]>([]);
   const [round, setRound] = useState(1);
   const [stats, setStats] = useState(() => emptyStats([]));
-  const [ticket, setTicket] = useState('');
-  const [answerIn, setAnswerIn] = useState('');
-  const [rtcWaiting, setRtcWaiting] = useState(false);
-  const [rtcBusy, setRtcBusy] = useState(false);
-  const [connectMode, setConnectMode] = useState<'code' | 'rtc'>('code');
   const [timerLeft, setTimerLeft] = useState<number | null>(null);
 
-  const bc = useRef<ReturnType<typeof openBroadcast> | null>(null);
+  const net = useRef<NetTransport | null>(null);
   const wordRef = useRef<WordPick | null>(null);
-  const rtcPeers = useRef<Map<string, { pc: RTCPeerConnection; dc: RoomMessage | null; send: (m: RoomMessage) => void }>>(new Map());
   const hostId = useMemo(() => 'host-' + Math.random().toString(36).slice(2, 7), []);
   const allPlayers: Player[] = useMemo(() => [{ id: hostId, name: hostName || 'Host' }, ...guests.map((g) => ({ id: g.playerId, name: g.name }))], [hostId, hostName, guests]);
 
-  // host >> broadcast/join listeners (BC + wait for RTC joins)
+  // host >> welcomes guests from anywhere (any device / network / location)
   useEffect(() => {
-    bc.current = openBroadcast(room, hostId);
-    bc.current.onMessage = (msg, from) => {
+    const t = joinNetRoom(room);
+    net.current = t;
+    t.onMessage = (msg, from) => {
+      void from;
       if (msg.t === 'join') {
         const name = msg.name.trim().slice(0, 18);
         if (!name) return;
         if (allPlayers.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
-          bc.current?.send({ t: 'joined', ok: false, reason: 'Name taken — pick a different one.', roster: [] }, msg.playerId);
+          net.current?.send({ t: 'joined', ok: false, reason: 'Name taken — pick a different one.', roster: [] }, msg.playerId);
           return;
         }
         const guest: ConnectedGuest = {
           playerId: msg.playerId,
           name,
-          send: (m) => bc.current?.send(m, msg.playerId)
+          send: (m) => net.current?.send(m, msg.playerId)
         };
         setGuests((gs) => (gs.some((g) => g.playerId === msg.playerId) ? gs : [...gs, guest]));
         guest.send({ t: 'joined', ok: true, roster: allPlayers.map((p) => ({ id: p.id, name: p.name })) });
@@ -102,84 +97,45 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
         setVotes((v) => (v[msg.voterId] ? v : { ...v, [msg.voterId]: msg.targetId }));
       }
       if (msg.t === 'leave') {
-        setGuests((gs) => gs.filter((g) => g.playerId !== msg.playerId));
+        dropGuest(msg.playerId);
       }
       if (msg.t === 'guess') {
         const ok = wordRef.current ? msg.guess.trim().toLowerCase() === wordRef.current.word.toLowerCase() : false;
         finishSteal(ok);
       }
     };
-    return () => bc.current?.close();
+    t.onPeer = (ev, peerId) => {
+      if (ev === 'join') {
+        t.send({ t: 'host-hi' }, peerId); // beacon so the guest shows "host found"
+      } else {
+        dropGuest(peerId);
+      }
+    };
+    return () => { net.current = null; t.close(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room, allPlayers.map((p) => p.name).join('|')]);
+
+  // a guest vanishing (closed tab / lost signal) must never soft-lock the game
+  function dropGuest(playerId: string) {
+    setGuests((gs) => gs.filter((g) => g.playerId !== playerId));
+    setVotes((v) => {
+      if (!(playerId in v)) return v;
+      const n = { ...v };
+      delete n[playerId];
+      return n;
+    });
+    setAlive((a) => a.length ? a.filter((id) => id !== playerId) : a);
+  }
 
   // announce roster to all connected peers whenever it changes
   useEffect(() => {
     for (const g of guests) g.send({ t: 'roster', roster: allPlayers.map((p) => ({ id: p.id, name: p.name })) });
   }, [guests, allPlayers]);
 
+  const guestsRef = useRef(guests);
+  guestsRef.current = guests;
   const broadcast = (m: RoomMessage) => {
-    for (const g of guests) g.send(m);
-  };
-
-  const beginConnectGuest = async () => {
-    setRtcBusy(true);
-    setRtcWaiting(false);
-    try {
-      const pc = newHostPeer();
-      const key = 'rtc-' + Math.random().toString(36).slice(2, 7);
-      const ticketStr = await hostOfferTicket(pc);
-      setTicket(ticketStr);
-      rtcPeers.current.set(key, { pc, dc: null, send: () => { throw new Error('not open yet'); } });
-      // when the data channel opens, wire a guest handler
-      const onDc = (dc: RTCDataChannel) => {
-        const t = wrapDataChannel(dc, pc);
-        let joinedId: string | null = null;
-        t.onMessage = (msg) => {
-          if (msg.t === 'join') {
-            joinedId = msg.playerId;
-            setRtcWaiting(false);
-            const name = msg.name.trim().slice(0, 18);
-            const guest: ConnectedGuest = { playerId: msg.playerId, name, send: (m) => t.send(m, null) };
-            setGuests((gs) => (gs.some((g) => g.playerId === msg.playerId) ? gs : [...gs, guest]));
-            guest.send({ t: 'joined', ok: true, roster: allPlayers.map((p) => ({ id: p.id, name: p.name })) });
-          }
-          if (msg.t === 'vote') setVotes((v) => (v[msg.voterId] ? v : { ...v, [msg.voterId]: msg.targetId }));
-          if (msg.t === 'guess') {
-            const ok = wordRef.current ? msg.guess.trim().toLowerCase() === wordRef.current.word.toLowerCase() : false;
-            finishSteal(ok);
-          }
-        };
-        t.onPeer = (ev) => { if (ev === 'leave' && joinedId) setGuests((gs) => gs.filter((g) => g.playerId !== joinedId)); };
-      };
-      // early data channel arrives via the pc's event because we createDataChannel first
-      pc.ondatachannel = (e) => onDc(e.channel);
-      // also expose the early one (we created it)
-      pc.addEventListener('negotiationneeded', () => { /* handled by offer */ }, { once: true });
-      // wire the early channel as well when it's open
-      connsafe(pc, onDc);
-    } catch (e) {
-      alert(rtcErrorMessage(e));
-    } finally {
-      setRtcBusy(false);
-    }
-  };
-
-  const finishAnswer = async () => {
-    const key = [...rtcPeers.current.keys()][rtcPeers.current.size - 1];
-    const rec = rtcPeers.current.get(key);
-    if (!rec) return;
-    setRtcBusy(true);
-    try {
-      await hostAcceptAnswer(rec.pc, answerIn);
-      setTicket('');
-      setAnswerIn('');
-      setRtcWaiting(true);
-    } catch (e) {
-      alert(rtcErrorMessage(e));
-    } finally {
-      setRtcBusy(false);
-    }
+    for (const g of guestsRef.current) g.send(m);
   };
 
   const startFromLobby = () => {
@@ -346,7 +302,7 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
           <div className="voi-card">
             <p className="voi-label">ROOM CODE</p>
             <span className="voi-roomcode">{room}</span>
-            <p className="voi-fine">Same device? Join in another tab with this code. Other phone? Use a connect ticket below.</p>
+            <p className="voi-fine">📡 Friends join from ANY device, ANY network, ANYWHERE — they open the game, tap JOIN, enter this code. No tickets, no fuss.</p>
             <input className="voi-input" placeholder="your name (host)" value={hostName} onChange={(e) => setHostName(e.target.value.slice(0, 18))} maxLength={18} />
             <div className="voi-players">
               {guests.map((g, i) => (
@@ -358,34 +314,6 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
               ))}
               {guests.length === 0 && <p className="voi-sub">Waiting for players to join with code <strong>{room}</strong>…</p>}
             </div>
-
-            <div className="voi-chips voi-chips--wrap">
-              <button type="button" className={`voi-chip ${connectMode === 'code' ? 'voi-chip--on' : ''}`} onClick={() => setConnectMode('code')}>SAME BROWSER/TAB</button>
-              <button type="button" className={`voi-chip ${connectMode === 'rtc' ? 'voi-chip--on' : ''}`} onClick={() => setConnectMode('rtc')}>📲 OTHER PHONE (ticket code)</button>
-            </div>
-            {connectMode === 'rtc' && (
-              <div className="voi-rtcpanel">
-                {!ticket && (
-                  <button type="button" className="voi-btn voi-btn--white" disabled={rtcBusy} onClick={() => void beginConnectGuest()}>
-                    {rtcBusy ? 'BUILDING TICKET…' : '+ GENERATE CONNECT TICKET'}
-                  </button>
-                )}
-                {ticket && (
-                  <>
-                    <p className="voi-label">1️⃣ SEND THIS TICKET TO YOUR FRIEND (WhatsApp, anything):</p>
-                    <textarea readOnly className="voi-input" rows={3} value={ticket} />
-                    <button type="button" className="voi-btn voi-btn--teal" onClick={() => void voiCopy(ticket)}>📋 COPY TICKET</button>
-                    <p className="voi-label">3️⃣ THEY paste it → tap CONNECT WITH TICKET → THEIR phone shows an ANSWER CODE. They send it back. Paste it here:</p>
-                    <textarea className="voi-input" rows={3} value={answerIn} onChange={(e) => setAnswerIn(e.target.value)} placeholder="paste answer…" />
-                    <button type="button" className="voi-btn voi-btn--red" disabled={!answerIn.trim() || rtcBusy} onClick={() => void finishAnswer()}>
-                      ✅ COMPLETE CONNECTION
-                    </button>
-                  </>
-                )}
-                {rtcWaiting && <p className="voi-fine" style={{ color: 'var(--voi-gold)' }}>⏳ Answer accepted — their phone is connecting now (takes a few seconds). They land in the lobby automatically.</p>}
-                <p className="voi-fine">Direct device-to-device, no server, no accounts — works on DIFFERENT networks too (4G ↔ Wi-Fi) via the ticket above. Fresh ticket per friend!</p>
-              </div>
-            )}
 
             <div className="voi-btnrow voi-btnrow--spread">
               <button type="button" className="voi-btn voi-btn--ghost" onClick={onBack}>← EXIT ROOM</button>
@@ -552,11 +480,6 @@ export function RoomHost({ onBack }: { onBack: () => void }) {
   }
 }
 
-function connsafe(pc: RTCPeerConnection, onDc: (dc: RTCDataChannel) => void) {
-  // the created channel: wired once it actually opens
-  void pc; void onDc;
-}
-
 function HostOwnRoleCard({ assignment, word }: { assignment: RoleAssignment | undefined; word: WordPick }) {
   const [hide, setHide] = useState(true);
   if (!assignment) return null;
@@ -610,8 +533,6 @@ export function RoomJoin({ onBack }: { onBack: () => void }) {
   const [state, setState] = useState<GuestState>('menu');
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
-  const [ticketIn, setTicketIn] = useState('');
-  const [answerOut, setAnswerOut] = useState('');
   const [roster, setRoster] = useState<{ id: string; name: string }[]>([]);
   const [role, setRole] = useState<{ isImposter: boolean; knowsWord: boolean; word: string | null; hint: string | null; categoryName: string } | null>(null);
   const [phaseInfo, setPhaseInfo] = useState<Record<string, unknown>>({});
@@ -621,7 +542,7 @@ export function RoomJoin({ onBack }: { onBack: () => void }) {
   const [revealShown, setRevealShown] = useState(false);
   const [guessIn, setGuessIn] = useState('');
   const [waitSec, setWaitSec] = useState(0);
-  const [answerCopied, setAnswerCopied] = useState(false);
+  const [hostFound, setHostFound] = useState(false);
   const playerId = useMemo(() => 'guest-' + Math.random().toString(36).slice(2, 9), []);
 
   useEffect(() => {
@@ -634,20 +555,22 @@ export function RoomJoin({ onBack }: { onBack: () => void }) {
   const cancelConnect = () => {
     transport.current?.close();
     transport.current = null;
-    setAnswerOut('');
+    setHostFound(false);
     setState('menu');
   };
 
-  const transport = useRef<ReturnType<typeof openBroadcast> | ReturnType<typeof wrapDataChannel> | null>(null);
+  const transport = useRef<NetTransport | null>(null);
+  const hostPeer = useRef<string | null>(null);
 
-  const wireMessages = (t: { onMessage: (m: RoomMessage, f: string | null) => void }) => {
-    t.onMessage = (m) => {
+  const wireMessages = (t: NetTransport) => {
+    t.onMessage = (m, from) => {
+      if (m.t === 'host-hi') { hostPeer.current = from; setHostFound(true); return; }
       if (m.t === 'joined') {
-        if (!m.ok) { alert(m.reason ?? 'Could not join.'); setState('menu'); return; }
+        if (!m.ok) { alert(m.reason ?? 'Could not join.'); disconnect(); return; }
+        hostPeer.current = hostPeer.current ?? from;
         setRoster(m.roster);
-        setAnswerOut('');
-        setAnswerCopied(false);
         setState('lobby');
+        sfx('votesDone');
         return;
       }
       if (m.t === 'roster') setRoster(m.roster);
@@ -676,34 +599,27 @@ export function RoomJoin({ onBack }: { onBack: () => void }) {
     };
   };
 
-  const joinSameBrowser = () => {
-    if (!code.trim() || !name.trim()) return;
-    const t = openBroadcast(code.trim().toUpperCase(), playerId);
-    transport.current = t;
-    wireMessages(t);
-    setState('connecting');
-    t.send({ t: 'join', name: name.trim(), playerId }, 'host');
-  };
-
-  const joinViaTicket = async () => {
-    if (!name.trim() || !ticketIn.trim()) return;
+  const connect = () => {
+    if (!code.trim() || code.trim().length !== 5 || !name.trim()) return;
     try {
-      const { pc, answerCode } = await guestAcceptTicket(ticketIn.trim());
-      setAnswerOut(answerCode);
+      const t = joinNetRoom(code);
+      transport.current = t;
+      wireMessages(t);
+      setHostFound(false);
       setState('connecting');
-      pc.ondatachannel = (e) => {
-        const t = wrapDataChannel(e.channel, pc);
-        transport.current = t;
-        wireMessages(t);
-        e.channel.onopen = () => t.send({ t: 'join', name: name.trim(), playerId }, null);
+      // say hi right away (host may already be in the room)…
+      t.send({ t: 'join', name: name.trim(), playerId }, null);
+      // …and again whenever a peer appears (covers host starting after us)
+      t.onPeer = (ev, peerId) => {
+        if (ev === 'join') t.send({ t: 'join', name: name.trim(), playerId }, peerId);
       };
-    } catch (e) {
-      alert(rtcErrorMessage(e) + '\n\nTip: the host regenerates tickets per guest — ask for a fresh one.');
+    } catch {
+      alert('Could not start networking on this device — check the internet and retry.');
     }
   };
 
   const sendMsg = (m: RoomMessage) => {
-    transport.current?.send(m, 'host');
+    transport.current?.send(m, hostPeer.current);
   };
 
   const castVote = () => {
@@ -716,6 +632,8 @@ export function RoomJoin({ onBack }: { onBack: () => void }) {
   const disconnect = () => {
     transport.current?.close();
     transport.current = null;
+    hostPeer.current = null;
+    setHostFound(false);
     setState('menu');
     setRoster([]);
   };
@@ -726,27 +644,12 @@ export function RoomJoin({ onBack }: { onBack: () => void }) {
         <div className="voi-card">
           <h2 className="voi-h">JOIN GAME</h2>
           <input className="voi-input" placeholder="your name" value={name} onChange={(e) => setName(e.target.value.slice(0, 18))} maxLength={18} />
-          <div className="voi-chips voi-chips--wrap">
-            <span className="voi-label">SAME BROWSER (other tab/dev preview):</span>
-          </div>
-          <div className="voi-addrow">
-            <input className="voi-input voi-input--code" placeholder="room code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 5))} maxLength={5} />
-            <button className="voi-btn voi-btn--red" onClick={joinSameBrowser} disabled={code.length !== 5 || !name.trim()}>JOIN</button>
-          </div>
-          <div className="voi-chips voi-chips--wrap" style={{ marginTop: 18 }}>
-            <span className="voi-label">📲 OTHER PHONE — PASTE HOST'S CONNECT TICKET:</span>
-          </div>
-          <textarea className="voi-input" rows={3} value={ticketIn} onChange={(e) => setTicketIn(e.target.value)} placeholder="paste join ticket…" />
-          <button className="voi-btn voi-btn--white" onClick={() => void joinViaTicket()} disabled={!ticketIn.trim() || !name.trim()}>
-            CONNECT WITH TICKET (then send back the answer code)
+          <span className="voi-label" style={{ marginTop: 10 }}>ROOM CODE — ASK THE HOST:</span>
+          <input className="voi-input voi-input--code" placeholder="ABCDE" value={code} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5))} maxLength={5} />
+          <button className="voi-btn voi-btn--red voi-btn--hero" onClick={connect} disabled={code.length !== 5 || !name.trim()}>
+            🚀 JOIN ROOM
           </button>
-          {answerOut && (
-            <>
-              <p className="voi-label">2️⃣ ALMOST IN! Send THIS code back to the host — they must paste it to finish:</p>
-              <button type="button" className="voi-btn voi-btn--teal" onClick={() => void voiCopy(answerOut)}>📋 COPY ANSWER CODE</button>
-              <textarea readOnly className="voi-input" rows={3} value={answerOut} />
-            </>
-          )}
+          <p className="voi-fine">Works from any phone, laptop, network or city — just make sure the host is on their room screen.</p>
           <button className="voi-btn voi-btn--ghost" onClick={onBack}>← BACK</button>
         </div>
       )}
@@ -756,22 +659,9 @@ export function RoomJoin({ onBack }: { onBack: () => void }) {
           <div className="voi-card" style={{ maxWidth: 440, textAlign: 'center' }}>
             <div className="voi-spinner" aria-hidden="true">📡</div>
             <h2 style={{ margin: '6px 0' }}>CONNECTING…</h2>
-            {answerOut ? (
-              <>
-                <p className="voi-sub">2️⃣ THIS IS YOUR <b>ANSWER CODE</b> — copy it and send it to the host. They must paste it to finish:</p>
-                <textarea readOnly className="voi-input" rows={3} value={answerOut} style={{ fontSize: 11 }} />
-                <button type="button" className="voi-btn voi-btn--teal voi-btn--hero" onClick={() => { void voiCopy(answerOut); setAnswerCopied(true); }}>
-                  {answerCopied ? '✅ COPIED! NOW SEND IT TO THE HOST' : '📋 COPY ANSWER CODE'}
-                </button>
-                <p className="voi-fine">You jump into the lobby automatically the instant the host pastes it — {waitSec}s</p>
-              </>
-            ) : (
-              <p className="voi-sub">Asking the host to let you in… {waitSec}s</p>
-            )}
-            {waitSec >= 20 && (
-              <p className="voi-fine" style={{ color: 'var(--voi-gold)' }}>
-                ⏳ Still nothing? Host must paste the answer code while BOTH of you stay on this page. If it&apos;s been a minute, cancel and grab a FRESH ticket.
-              </p>
+            <p className="voi-sub">{hostFound ? '✅ HOST FOUND! Joining…' : 'Finding the host…'} {waitSec}s</p>
+            {waitSec >= 12 && (
+              <p className="voi-fine" style={{ color: 'var(--voi-gold)', whiteSpace: 'pre-line' }}>{joinFailMessage(code)}</p>
             )}
             <button type="button" className="voi-btn voi-btn--ghost" onClick={cancelConnect}>✕ CANCEL</button>
           </div>

@@ -204,6 +204,7 @@ interface Channel {
 let active: Channel | null = null;
 let rotationTimer: number | null = null;
 let recentTracks: number[] = [];
+let lastMoodWanted: Exclude<Mood, 'off'> | null = null;
 
 function pickTrackIndex(family: Family): number {
   const pool: number[] = [];
@@ -313,6 +314,7 @@ function launchRotation(): void {
 }
 
 export function music(mood: Mood): void {
+  if (mood !== 'off') lastMoodWanted = mood;
   if (mood === 'off' || !loadPrefs().music) {
     stopMusic();
     return;
@@ -351,8 +353,9 @@ export function updatePrefs(patch: Partial<SoundPrefs>): SoundPrefs {
     master.gain.setTargetAtTime(prefs.volume / 100, ctx.currentTime, 0.05);
   }
   if (patch.music === false) stopMusic();
-  else if (patch.music === true && currentMood && currentMood !== 'off') {
-    const m = currentMood as Exclude<Mood, 'off'>;
+  else if (patch.music === true && lastMoodWanted) {
+    // instantly start the mood the screen wanted — fixes the "dead toggle"
+    const m = lastMoodWanted;
     currentMood = null;
     music(m);
   }
