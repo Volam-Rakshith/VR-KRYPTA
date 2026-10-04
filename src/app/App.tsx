@@ -15,14 +15,12 @@ import { Welcome } from '../features/Welcome';
 import { ShareSecret } from '../features/ShareSecret';
 import { AutoDetect } from '../features/AutoDetect';
 import { Learn } from '../features/Learn';
-import { ImposterGame } from '../features/game/ImposterGame';
 
 const NAV = [
   { path: '/', label: 'HOME', icon: 'home' },
   { path: '/explore', label: 'LIBRARY', icon: 'grid' },
   { path: '/detect', label: 'AUTO-DETECT', icon: 'magnifier' },
   { path: '/learn', label: 'LEARN', icon: 'flask' },
-  { path: '/game', label: '🎮 GAME', icon: 'gamepad' },
   { path: '/pipelines', label: 'PIPELINES', icon: 'layers' },
   { path: '/share', label: 'SECRET DROP', icon: 'link' },
   { path: '/settings', label: 'SETTINGS', icon: 'gear' }
@@ -118,7 +116,6 @@ export default function App() {
           {route.name === 'share' && <ShareSecret payload={route.param} />}
           {route.name === 'detect' && <AutoDetect />}
           {route.name === 'learn' && <Learn opId={route.param} />}
-          {route.name === 'game' && <ImposterGame />}
         </main>
         <Footer />
       </div>
